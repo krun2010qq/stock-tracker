@@ -1,8 +1,7 @@
 const REFRESH_MS = 30000;
-const NEWS_LIMIT = 10;
+const NEWS_PER_STOCK = 4;
 
 const quoteCards = document.getElementById("quote-cards");
-const newsGrid = document.getElementById("news-grid");
 const statusPill = document.getElementById("status-pill");
 const lastUpdated = document.getElementById("last-updated");
 
@@ -47,13 +46,6 @@ function formatOdds(value) {
   return `${value.toFixed(1)}%`;
 }
 
-function renderEngagement(item) {
-  const parts = [];
-  if (item.score != null) parts.push(`${item.score} upvotes`);
-  if (item.comments != null) parts.push(`${item.comments} 评论`);
-  return parts.length ? ` · ${parts.join(" · ")}` : "";
-}
-
 function renderPolymarketMarkets(quote) {
   const markets = quote.polymarket || [];
   const searchUrl = quote.polymarket_search_url || "https://polymarket.com/";
@@ -96,6 +88,41 @@ function renderPolymarketMarkets(quote) {
   `;
 }
 
+function renderStockNews(quote) {
+  const news = (quote.news || []).slice(0, NEWS_PER_STOCK);
+
+  if (!news.length) {
+    return `
+      <div class="news-block">
+        <div class="news-head">Yahoo Finance 新闻</div>
+        <p class="news-empty">暂无新闻</p>
+      </div>
+    `;
+  }
+
+  const items = news
+    .map(
+      (item) => `
+        <a class="news-item" href="${escapeHtml(item.url || "#")}" target="_blank" rel="noopener noreferrer">
+          <p class="news-item-title">${escapeHtml(item.title)}</p>
+          <p class="news-item-summary">${escapeHtml(item.summary || "Yahoo Finance 新闻")}</p>
+          <div class="news-item-meta">
+            <span>${escapeHtml(item.publisher || "Yahoo Finance")}</span>
+            <span>${formatDate(item.published_at)}</span>
+          </div>
+        </a>
+      `
+    )
+    .join("");
+
+  return `
+    <div class="news-block">
+      <div class="news-head">Yahoo Finance 新闻</div>
+      <div class="news-list">${items}</div>
+    </div>
+  `;
+}
+
 function renderQuotes(quotes) {
   quoteCards.innerHTML = quotes
     .map((quote) => {
@@ -116,55 +143,23 @@ function renderQuotes(quotes) {
             <span>${formatDate(quote.updated_at)}</span>
           </div>
           ${renderPolymarketMarkets(quote)}
+          ${renderStockNews(quote)}
         </article>
       `;
     })
     .join("");
 }
 
-function renderNews(news) {
-  const latestNews = news.slice(0, NEWS_LIMIT);
-
-  if (!latestNews.length) {
-    newsGrid.innerHTML = `<div class="empty-state">暂时没有抓到 Reddit 帖子，请稍后再试。</div>`;
-    return;
-  }
-
-  newsGrid.innerHTML = latestNews
-    .map(
-      (item) => `
-        <article class="news-card">
-          <span class="news-tag">${escapeHtml(item.symbol)}</span>
-          <a href="${escapeHtml(item.url || "#")}" target="_blank" rel="noopener noreferrer">
-            <h3 class="news-title">${escapeHtml(item.title)}</h3>
-          </a>
-          <p class="news-summary">${escapeHtml(item.summary || "Reddit 讨论帖")}</p>
-          <div class="news-meta">
-            <span>${escapeHtml(item.publisher || "Reddit")}</span>
-            <span>${formatDate(item.published_at)}${renderEngagement(item)}</span>
-          </div>
-        </article>
-      `
-    )
-    .join("");
-}
-
 async function loadDashboard() {
   try {
-    const [quotesRes, newsRes] = await Promise.all([
-      fetch("/api/quotes"),
-      fetch(`/api/news?limit=${NEWS_LIMIT}`),
-    ]);
+    const quotesRes = await fetch("/api/quotes");
 
-    if (!quotesRes.ok || !newsRes.ok) {
+    if (!quotesRes.ok) {
       throw new Error("API request failed");
     }
 
     const quotesData = await quotesRes.json();
-    const newsData = await newsRes.json();
-
     renderQuotes(quotesData.quotes || []);
-    renderNews(newsData.news || []);
 
     statusPill.textContent = "数据已更新";
     statusPill.className = "status-pill ok";

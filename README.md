@@ -51,6 +51,6 @@ sudo systemctl restart stock-tracker
 ## 数据来源
 
 - 股价：Yahoo Finance / Finnhub（可选）
-- 新闻：Reddit RSS（r/stocks、r/investing、r/wallstreetbets 等）
+- 新闻：Yahoo Finance RSS（每支股票最新 4 条，显示在对应卡片下方）
 - 赔率：Polymarket Gamma API（含直达链接）
 - 免费数据源存在延迟，不等同于交易所毫秒级行情
