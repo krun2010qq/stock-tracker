@@ -43,5 +43,5 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ## 数据来源
 
-- 股价与新闻来自 [Yahoo Finance](https://finance.yahoo.com/)（通过 `yfinance`）
+- 股价与新闻来自 [Yahoo Finance](https://finance.yahoo.com/) 公开接口
 - 免费数据源存在延迟，不等同于交易所毫秒级行情
