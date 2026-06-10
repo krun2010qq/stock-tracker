@@ -1,0 +1,15 @@
+[Unit]
+Description=Stock Tracker Web App
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/stock-tracker
+Environment=PATH=/opt/stock-tracker/.venv/bin
+ExecStart=/opt/stock-tracker/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
