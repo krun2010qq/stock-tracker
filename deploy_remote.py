@@ -47,9 +47,9 @@ def run(client: paramiko.SSHClient, command: str) -> None:
     out = stdout.read().decode("utf-8", errors="replace")
     err = stderr.read().decode("utf-8", errors="replace")
     if out.strip():
-        print(out.strip())
+        print(out.strip().encode("ascii", "replace").decode("ascii"))
     if err.strip():
-        print(err.strip())
+        print(err.strip().encode("ascii", "replace").decode("ascii"))
     if exit_code != 0:
         raise RuntimeError(f"Command failed ({exit_code}): {command}")
 

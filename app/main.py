@@ -34,7 +34,7 @@ def quotes() -> dict:
 
 @app.get("/api/news")
 def news(limit: int = 24) -> dict:
-    return {"news": get_news(limit_per_symbol=max(1, min(limit // 3, 12))}
+    return {"news": get_news(limit_per_symbol=max(1, min(limit // 3, 12)))}
 
 
 @app.get("/api/health")

@@ -2,6 +2,8 @@
 
 追踪 **GOOGL**、**NVDA**、**AVGO** 三支美股的实时报价与相关新闻。
 
+在线演示：http://49.51.195.205/
+
 ## 功能
 
 - 实时股价（约 30 秒自动刷新）
@@ -34,14 +36,20 @@ sudo mkdir -p /opt/stock-tracker
 sudo python3 -m venv /opt/stock-tracker/.venv
 sudo /opt/stock-tracker/.venv/bin/pip install -r /opt/stock-tracker/requirements.txt
 sudo cp deploy/stock-tracker.service /etc/systemd/system/
-sudo cp deploy/nginx-stock-tracker.conf /etc/nginx/sites-available/stock-tracker
-sudo ln -sf /etc/nginx/sites-available/stock-tracker /etc/nginx/sites-enabled/stock-tracker
+sudo cp deploy/nginx-stock-tracker.conf /etc/nginx/conf.d/stock-tracker.conf
 sudo systemctl daemon-reload
-sudo systemctl enable --now stock-tracker
-sudo nginx -t && sudo systemctl reload nginx
+sudo systemctl enable --now stock-tracker nginx
+```
+
+可选：配置 Finnhub API Key 以获得更稳定的实时报价：
+
+```bash
+echo 'FINNHUB_API_KEY=你的key' | sudo tee /opt/stock-tracker/.env
+sudo systemctl restart stock-tracker
 ```
 
 ## 数据来源
 
-- 股价与新闻来自 [Yahoo Finance](https://finance.yahoo.com/) 公开接口
+- 股价：Yahoo Finance / Finnhub（可选）
+- 新闻：Google News RSS / Finnhub（可选）
 - 免费数据源存在延迟，不等同于交易所毫秒级行情

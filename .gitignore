@@ -4,5 +4,12 @@ __pycache__/
 venv/
 .env
 .deploy_password
+data/quotes.json
+remote_check.py
+remote_diag.py
+remote_finish.py
+remote_fix.py
+remote_seed.py
+test_*.py
 *.log
 .DS_Store

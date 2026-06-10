@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
+import os
 import time
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -13,33 +16,52 @@ TRACKED_SYMBOLS: dict[str, str] = {
     "AVGO": "Broadcom",
 }
 
-CACHE_TTL_SECONDS = 30
+CACHE_TTL_SECONDS = 120
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+QUOTE_CACHE_FILE = DATA_DIR / "quotes.json"
+
 _quote_cache: dict[str, Any] = {"expires_at": 0.0, "data": []}
 _news_cache: dict[str, Any] = {"expires_at": 0.0, "data": []}
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; StockTracker/1.0)",
-    "Accept": "application/json,text/xml,*/*",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Accept": "application/json,application/xml,*/*",
 }
 
 
 def _safe_float(value: Any) -> float | None:
     try:
-        if value is None:
+        if value is None or value == "":
             return None
         return float(value)
     except (TypeError, ValueError):
         return None
 
 
-def _fetch_quote(symbol: str, name: str) -> dict[str, Any]:
+def _load_file_cache() -> list[dict[str, Any]]:
+    if not QUOTE_CACHE_FILE.exists():
+        return []
+    try:
+        payload = json.loads(QUOTE_CACHE_FILE.read_text(encoding="utf-8"))
+        return payload.get("quotes", [])
+    except Exception:
+        return []
+
+
+def _save_file_cache(quotes: list[dict[str, Any]]) -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    QUOTE_CACHE_FILE.write_text(
+        json.dumps({"quotes": quotes, "saved_at": datetime.now(timezone.utc).isoformat()}, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _fetch_quote_yahoo(symbol: str, name: str, client: httpx.Client) -> dict[str, Any]:
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
     params = {"interval": "1m", "range": "1d"}
-
-    with httpx.Client(timeout=20.0, headers=HEADERS) as client:
-        response = client.get(url, params=params)
-        response.raise_for_status()
-        payload = response.json()
+    response = client.get(url, params=params)
+    response.raise_for_status()
+    payload = response.json()
 
     result = (payload.get("chart") or {}).get("result") or []
     if not result:
@@ -65,38 +87,120 @@ def _fetch_quote(symbol: str, name: str) -> dict[str, Any]:
         "currency": meta.get("currency") or "USD",
         "market_state": meta.get("marketState") or "REGULAR",
         "updated_at": datetime.now(timezone.utc).isoformat(),
+        "source": "yahoo",
     }
 
 
-def _fetch_symbol_news(symbol: str, limit: int = 8) -> list[dict[str, Any]]:
-    url = f"https://feeds.finance.yahoo.com/rss/2.0/headline"
-    params = {"s": symbol, "region": "US", "lang": "en-US"}
+def _fetch_quote_finnhub(symbol: str, name: str, client: httpx.Client, token: str) -> dict[str, Any]:
+    response = client.get(
+        "https://finnhub.io/api/v1/quote",
+        params={"symbol": symbol, "token": token},
+    )
+    response.raise_for_status()
+    payload = response.json()
+
+    price = _safe_float(payload.get("c"))
+    previous_close = _safe_float(payload.get("pc"))
+    change = _safe_float(payload.get("d"))
+    change_percent = _safe_float(payload.get("dp"))
+
+    return {
+        "symbol": symbol,
+        "name": name,
+        "price": price,
+        "previous_close": previous_close,
+        "change": change,
+        "change_percent": change_percent,
+        "currency": "USD",
+        "market_state": "REGULAR",
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "source": "finnhub",
+    }
+
+
+def _fetch_all_quotes() -> list[dict[str, Any]]:
+    finnhub_token = os.environ.get("FINNHUB_API_KEY", "").strip()
+    quotes: list[dict[str, Any]] = []
 
     with httpx.Client(timeout=20.0, headers=HEADERS) as client:
+        for index, (symbol, name) in enumerate(TRACKED_SYMBOLS.items()):
+            if index > 0:
+                time.sleep(0.5)
+
+            if finnhub_token:
+                try:
+                    quotes.append(_fetch_quote_finnhub(symbol, name, client, finnhub_token))
+                    continue
+                except Exception:
+                    pass
+
+            quotes.append(_fetch_quote_yahoo(symbol, name, client))
+
+    if not all(quote.get("price") is not None for quote in quotes):
+        raise ValueError("Incomplete quote data")
+
+    return quotes
+
+
+def _fetch_symbol_news(symbol: str, limit: int = 8) -> list[dict[str, Any]]:
+    finnhub_token = os.environ.get("FINNHUB_API_KEY", "").strip()
+    if finnhub_token:
+        today = datetime.now(timezone.utc).date()
+        start = today - timedelta(days=7)
+        with httpx.Client(timeout=20.0, headers=HEADERS) as client:
+            response = client.get(
+                "https://finnhub.io/api/v1/company-news",
+                params={
+                    "symbol": symbol,
+                    "from": start.isoformat(),
+                    "to": today.isoformat(),
+                    "token": finnhub_token,
+                },
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if isinstance(payload, list) and payload:
+                items: list[dict[str, Any]] = []
+                for item in payload[:limit]:
+                    published = item.get("datetime")
+                    published_at = None
+                    if isinstance(published, (int, float)):
+                        published_at = datetime.fromtimestamp(published, tz=timezone.utc).isoformat()
+                    items.append(
+                        {
+                            "symbol": symbol,
+                            "title": item.get("headline") or "Untitled",
+                            "summary": item.get("summary") or "",
+                            "url": item.get("url") or "",
+                            "publisher": item.get("source") or "Finnhub",
+                            "published_at": published_at,
+                            "thumbnail": item.get("image"),
+                        }
+                    )
+                return items
+
+    query = f"{symbol}+stock"
+    url = "https://news.google.com/rss/search"
+    params = {"q": query, "hl": "en-US", "gl": "US", "ceid": "US:en"}
+
+    with httpx.Client(timeout=20.0, headers=HEADERS, follow_redirects=True) as client:
         response = client.get(url, params=params)
         response.raise_for_status()
         root = ET.fromstring(response.text)
 
-    items: list[dict[str, Any]] = []
+    items = []
     for item in root.findall("./channel/item")[:limit]:
-        title = (item.findtext("title") or "Untitled").strip()
-        link = (item.findtext("link") or "").strip()
-        summary = (item.findtext("description") or "").strip()
-        published_at = (item.findtext("pubDate") or "").strip()
-        publisher = (item.findtext("source") or "Yahoo Finance").strip()
-
         items.append(
             {
                 "symbol": symbol,
-                "title": title,
-                "summary": summary,
-                "url": link,
-                "publisher": publisher,
-                "published_at": published_at,
+                "title": (item.findtext("title") or "Untitled").strip(),
+                "summary": (item.findtext("description") or "").strip(),
+                "url": (item.findtext("link") or "").strip(),
+                "publisher": (item.findtext("source") or "Google News").strip(),
+                "published_at": (item.findtext("pubDate") or "").strip(),
                 "thumbnail": None,
             }
         )
-
     return items
 
 
@@ -106,24 +210,27 @@ def get_quotes() -> list[dict[str, Any]]:
         return _quote_cache["data"]
 
     quotes: list[dict[str, Any]] = []
-    for symbol, name in TRACKED_SYMBOLS.items():
-        try:
-            quotes.append(_fetch_quote(symbol, name))
-        except Exception as exc:
-            quotes.append(
-                {
-                    "symbol": symbol,
-                    "name": name,
-                    "price": None,
-                    "previous_close": None,
-                    "change": None,
-                    "change_percent": None,
-                    "currency": "USD",
-                    "market_state": "ERROR",
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
-                    "error": str(exc),
-                }
-            )
+    try:
+        quotes = _fetch_all_quotes()
+        _save_file_cache(quotes)
+    except Exception:
+        quotes = _load_file_cache()
+
+    if not quotes:
+        quotes = [
+            {
+                "symbol": symbol,
+                "name": name,
+                "price": None,
+                "previous_close": None,
+                "change": None,
+                "change_percent": None,
+                "currency": "USD",
+                "market_state": "ERROR",
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            for symbol, name in TRACKED_SYMBOLS.items()
+        ]
 
     _quote_cache["data"] = quotes
     _quote_cache["expires_at"] = now + CACHE_TTL_SECONDS
@@ -136,16 +243,15 @@ def get_news(limit_per_symbol: int = 8) -> list[dict[str, Any]]:
         return _news_cache["data"]
 
     all_news: list[dict[str, Any]] = []
-    for symbol in TRACKED_SYMBOLS:
+    for index, symbol in enumerate(TRACKED_SYMBOLS):
+        if index > 0:
+            time.sleep(0.3)
         try:
             all_news.extend(_fetch_symbol_news(symbol, limit=limit_per_symbol))
         except Exception:
             continue
 
-    all_news.sort(
-        key=lambda item: item.get("published_at") or "",
-        reverse=True,
-    )
+    all_news.sort(key=lambda item: item.get("published_at") or "", reverse=True)
 
     _news_cache["data"] = all_news
     _news_cache["expires_at"] = now + CACHE_TTL_SECONDS
