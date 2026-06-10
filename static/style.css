@@ -160,6 +160,76 @@ h1 {
   font-size: 0.85rem;
 }
 
+.poly-block {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 10px;
+}
+
+.poly-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.poly-head a {
+  color: var(--blue);
+  text-decoration: none;
+}
+
+.poly-head a:hover {
+  text-decoration: underline;
+}
+
+.poly-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(96, 165, 250, 0.06);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.poly-item:hover {
+  border-color: rgba(96, 165, 250, 0.35);
+  transform: translateY(-1px);
+}
+
+.poly-title {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.poly-odds {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+}
+
+.poly-yes {
+  color: var(--green);
+}
+
+.poly-no {
+  color: var(--red);
+}
+
+.poly-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .section-head h2 {
   margin: 0 0 6px;
   font-size: 1.5rem;

@@ -3,8 +3,7 @@ from __future__ import annotations
 import json
 import os
 import time
-import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +20,6 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 QUOTE_CACHE_FILE = DATA_DIR / "quotes.json"
 
 _quote_cache: dict[str, Any] = {"expires_at": 0.0, "data": []}
-_news_cache: dict[str, Any] = {"expires_at": 0.0, "data": []}
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -142,68 +140,6 @@ def _fetch_all_quotes() -> list[dict[str, Any]]:
     return quotes
 
 
-def _fetch_symbol_news(symbol: str, limit: int = 8) -> list[dict[str, Any]]:
-    finnhub_token = os.environ.get("FINNHUB_API_KEY", "").strip()
-    if finnhub_token:
-        today = datetime.now(timezone.utc).date()
-        start = today - timedelta(days=7)
-        with httpx.Client(timeout=20.0, headers=HEADERS) as client:
-            response = client.get(
-                "https://finnhub.io/api/v1/company-news",
-                params={
-                    "symbol": symbol,
-                    "from": start.isoformat(),
-                    "to": today.isoformat(),
-                    "token": finnhub_token,
-                },
-            )
-            response.raise_for_status()
-            payload = response.json()
-            if isinstance(payload, list) and payload:
-                items: list[dict[str, Any]] = []
-                for item in payload[:limit]:
-                    published = item.get("datetime")
-                    published_at = None
-                    if isinstance(published, (int, float)):
-                        published_at = datetime.fromtimestamp(published, tz=timezone.utc).isoformat()
-                    items.append(
-                        {
-                            "symbol": symbol,
-                            "title": item.get("headline") or "Untitled",
-                            "summary": item.get("summary") or "",
-                            "url": item.get("url") or "",
-                            "publisher": item.get("source") or "Finnhub",
-                            "published_at": published_at,
-                            "thumbnail": item.get("image"),
-                        }
-                    )
-                return items
-
-    query = f"{symbol}+stock"
-    url = "https://news.google.com/rss/search"
-    params = {"q": query, "hl": "en-US", "gl": "US", "ceid": "US:en"}
-
-    with httpx.Client(timeout=20.0, headers=HEADERS, follow_redirects=True) as client:
-        response = client.get(url, params=params)
-        response.raise_for_status()
-        root = ET.fromstring(response.text)
-
-    items = []
-    for item in root.findall("./channel/item")[:limit]:
-        items.append(
-            {
-                "symbol": symbol,
-                "title": (item.findtext("title") or "Untitled").strip(),
-                "summary": (item.findtext("description") or "").strip(),
-                "url": (item.findtext("link") or "").strip(),
-                "publisher": (item.findtext("source") or "Google News").strip(),
-                "published_at": (item.findtext("pubDate") or "").strip(),
-                "thumbnail": None,
-            }
-        )
-    return items
-
-
 def get_quotes() -> list[dict[str, Any]]:
     now = time.time()
     if _quote_cache["data"] and now < _quote_cache["expires_at"]:
@@ -235,24 +171,3 @@ def get_quotes() -> list[dict[str, Any]]:
     _quote_cache["data"] = quotes
     _quote_cache["expires_at"] = now + CACHE_TTL_SECONDS
     return quotes
-
-
-def get_news(limit_per_symbol: int = 8) -> list[dict[str, Any]]:
-    now = time.time()
-    if _news_cache["data"] and now < _news_cache["expires_at"]:
-        return _news_cache["data"]
-
-    all_news: list[dict[str, Any]] = []
-    for index, symbol in enumerate(TRACKED_SYMBOLS):
-        if index > 0:
-            time.sleep(0.3)
-        try:
-            all_news.extend(_fetch_symbol_news(symbol, limit=limit_per_symbol))
-        except Exception:
-            continue
-
-    all_news.sort(key=lambda item: item.get("published_at") or "", reverse=True)
-
-    _news_cache["data"] = all_news
-    _news_cache["expires_at"] = now + CACHE_TTL_SECONDS
-    return all_news
