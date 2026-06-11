@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from __future__ import annotations
+
 import secrets
 from datetime import datetime, timezone
 

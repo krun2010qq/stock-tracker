@@ -3,6 +3,7 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import datetime, timezone
+from typing import List, Optional
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -35,18 +36,18 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True)
-    phone: Mapped[str | None] = mapped_column(String(32), unique=True, index=True)
-    password_hash: Mapped[str | None] = mapped_column(String(255))
+    email: Mapped[Optional[str]] = mapped_column(String(255), unique=True, index=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(32), unique=True, index=True)
+    password_hash: Mapped[Optional[str]] = mapped_column(String(255))
     display_name: Mapped[str] = mapped_column(String(120), default="用户")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_premium: Mapped[bool] = mapped_column(Boolean, default=False)
-    premium_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    premium_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
-    oauth_accounts: Mapped[list[OAuthAccount]] = relationship(back_populates="user", cascade="all, delete-orphan")
-    payment_orders: Mapped[list[PaymentOrder]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    oauth_accounts: Mapped[List["OAuthAccount"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    payment_orders: Mapped[List["PaymentOrder"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class OAuthAccount(Base):
@@ -57,7 +58,7 @@ class OAuthAccount(Base):
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), index=True)
     provider: Mapped[str] = mapped_column(String(20), index=True)
     provider_user_id: Mapped[str] = mapped_column(String(128))
-    provider_nickname: Mapped[str | None] = mapped_column(String(120))
+    provider_nickname: Mapped[Optional[str]] = mapped_column(String(120))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     user: Mapped[User] = relationship(back_populates="oauth_accounts")
@@ -73,9 +74,9 @@ class PaymentOrder(Base):
     amount_yuan: Mapped[float] = mapped_column(Numeric(10, 2))
     product_code: Mapped[str] = mapped_column(String(64), default="premium_monthly")
     status: Mapped[str] = mapped_column(String(20), default=PaymentStatus.PENDING.value, index=True)
-    provider_trade_no: Mapped[str | None] = mapped_column(String(128))
-    pay_url: Mapped[str | None] = mapped_column(Text)
+    provider_trade_no: Mapped[Optional[str]] = mapped_column(String(128))
+    pay_url: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     user: Mapped[User] = relationship(back_populates="payment_orders")
