@@ -11,9 +11,22 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="/static/auth.css" />
   </head>
   <body>
     <div class="page">
+      <nav class="top-nav">
+        <div>
+          <strong>Stock Tracker</strong>
+          <span id="user-label" class="form-note" style="margin-left: 10px"></span>
+        </div>
+        <div class="top-nav-actions">
+          <a class="nav-btn" href="/pricing.html">会员订阅</a>
+          <a class="nav-btn" href="/register.html">注册</a>
+          <a class="nav-btn" href="#" id="logout-btn">退出</a>
+        </div>
+      </nav>
+
       <header class="hero">
         <div>
           <p class="eyebrow">Live Market Dashboard</p>
@@ -31,6 +44,7 @@
       <section class="cards" id="quote-cards"></section>
     </div>
 
+    <script src="/static/auth.js"></script>
     <script src="/static/app.js"></script>
   </body>
 </html>

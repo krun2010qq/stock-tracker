@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>会员订阅 | Stock Tracker</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="/static/auth.css" />
+  </head>
+  <body>
+    <div class="auth-shell">
+      <div class="auth-card">
+        <h1>会员订阅</h1>
+        <p id="plan-desc">开通高级会员，解锁完整功能</p>
+
+        <div class="plan-card">
+          <div>高级会员（月付）</div>
+          <div class="plan-price" id="plan-price">--</div>
+          <ul id="plan-features" style="margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.7"></ul>
+
+          <div class="plan-actions">
+            <button class="primary-btn" id="pay-wechat" type="button">微信支付</button>
+            <button class="secondary-btn" id="pay-alipay" type="button">支付宝支付</button>
+            <button class="secondary-btn" id="demo-complete" type="button" style="display: none">演示模式：完成支付</button>
+          </div>
+        </div>
+
+        <div class="form-message" id="form-message"></div>
+        <p class="form-note" id="demo-note"></p>
+
+        <div class="auth-footer">
+          <a href="/">返回面板</a> · <a href="#" id="logout-link">退出登录</a>
+        </div>
+      </div>
+    </div>
+
+    <script src="/static/auth.js"></script>
+    <script>
+      if (!requireAuth()) throw new Error("auth required");
+
+      let currentOrderNo = null;
+      let demoMode = false;
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("order_no")) currentOrderNo = params.get("order_no");
+      if (params.get("demo") === "1") demoMode = true;
+
+      document.getElementById("logout-link").addEventListener("click", (event) => {
+        event.preventDefault();
+        logout();
+      });
+
+      async function initPlan() {
+        const plan = await apiFetch("/api/payments/plans");
+        const monthly = plan.plans[0];
+        document.getElementById("plan-price").textContent = `¥${monthly.price_yuan}`;
+        document.getElementById("plan-features").innerHTML = monthly.features.map((item) => `<li>${item}</li>`).join("");
+        demoMode = plan.demo_mode;
+        document.getElementById("demo-note").textContent = plan.demo_mode
+          ? "当前为演示模式。正式接入微信/支付宝商户后，将跳转真实收银台。"
+          : "支付完成后会员会自动开通。";
+        if (plan.demo_mode && currentOrderNo) {
+          document.getElementById("demo-complete").style.display = "block";
+        }
+      }
+
+      async function startPayment(provider) {
+        const message = document.getElementById("form-message");
+        showMessage(message, "正在创建订单...", "success");
+        try {
+          const data = await apiFetch("/api/payments/create", {
+            method: "POST",
+            body: JSON.stringify({ provider }),
+          });
+          currentOrderNo = data.order_no;
+          if (data.demo_mode) {
+            document.getElementById("demo-complete").style.display = "block";
+            showMessage(message, data.message || "演示订单已创建，请点击下方按钮完成演示支付。", "success");
+            return;
+          }
+          window.location.href = data.pay_url;
+        } catch (error) {
+          showMessage(message, error.message, "error");
+        }
+      }
+
+      document.getElementById("pay-wechat").addEventListener("click", () => startPayment("wechat"));
+      document.getElementById("pay-alipay").addEventListener("click", () => startPayment("alipay"));
+      document.getElementById("demo-complete").addEventListener("click", async () => {
+        const message = document.getElementById("form-message");
+        if (!currentOrderNo) {
+          showMessage(message, "请先创建订单", "error");
+          return;
+        }
+        try {
+          const data = await apiFetch(`/api/payments/demo/complete/${currentOrderNo}`, { method: "POST" });
+          showMessage(message, data.message, "success");
+          setTimeout(() => (window.location.href = "/"), 800);
+        } catch (error) {
+          showMessage(message, error.message, "error");
+        }
+      });
+
+      initPlan().catch((error) => {
+        showMessage(document.getElementById("form-message"), error.message, "error");
+      });
+    </script>
+  </body>
+</html>

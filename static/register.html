@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>个人注册 | Stock Tracker</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="/static/auth.css" />
+  </head>
+  <body>
+    <div class="auth-shell">
+      <div class="auth-card">
+        <h1>个人注册</h1>
+        <p>免费注册账号，立即使用美股追踪面板</p>
+
+        <form class="auth-form" id="register-form">
+          <div class="form-field">
+            <label for="display_name">昵称</label>
+            <input id="display_name" name="display_name" type="text" required maxlength="60" placeholder="你的昵称" />
+          </div>
+          <div class="form-field">
+            <label for="email">邮箱</label>
+            <input id="email" name="email" type="email" required placeholder="you@example.com" />
+          </div>
+          <div class="form-field">
+            <label for="password">密码</label>
+            <input id="password" name="password" type="password" required minlength="6" placeholder="至少 6 位" />
+          </div>
+          <div class="form-field">
+            <label for="password_confirm">确认密码</label>
+            <input id="password_confirm" name="password_confirm" type="password" required minlength="6" />
+          </div>
+          <div class="form-message" id="form-message"></div>
+          <button class="primary-btn" type="submit">创建账号</button>
+        </form>
+
+        <div class="divider" style="margin: 20px 0">或使用第三方注册/登录</div>
+        <div class="oauth-group" id="oauth-group"></div>
+
+        <p class="form-note" style="margin-top: 16px">
+          注册后可前往 <a href="/pricing.html">会员订阅</a>，使用微信或支付宝开通高级会员。
+        </p>
+
+        <div class="auth-footer">
+          已有账号？<a href="/login.html">去登录</a>
+        </div>
+      </div>
+    </div>
+
+    <script src="/static/auth.js"></script>
+    <script>
+      loadAuthProviders("oauth-group");
+
+      document.getElementById("register-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const message = document.getElementById("form-message");
+        const password = document.getElementById("password").value;
+        const confirm = document.getElementById("password_confirm").value;
+        if (password !== confirm) {
+          showMessage(message, "两次输入的密码不一致", "error");
+          return;
+        }
+
+        showMessage(message, "");
+        try {
+          const payload = {
+            display_name: document.getElementById("display_name").value.trim(),
+            email: document.getElementById("email").value.trim(),
+            password,
+          };
+          const data = await apiFetch("/api/auth/register", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          setToken(data.access_token);
+          showMessage(message, "注册成功，正在跳转...", "success");
+          setTimeout(() => (window.location.href = "/"), 600);
+        } catch (error) {
+          showMessage(message, error.message, "error");
+        }
+      });
+    </script>
+  </body>
+</html>

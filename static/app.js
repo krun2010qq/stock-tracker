@@ -1,9 +1,20 @@
 const REFRESH_MS = 30000;
 const NEWS_PER_STOCK = 4;
 
+if (!requireAuth()) {
+  throw new Error("redirecting to login");
+}
+
 const quoteCards = document.getElementById("quote-cards");
 const statusPill = document.getElementById("status-pill");
 const lastUpdated = document.getElementById("last-updated");
+const userLabel = document.getElementById("user-label");
+const logoutBtn = document.getElementById("logout-btn");
+
+logoutBtn.addEventListener("click", (event) => {
+  event.preventDefault();
+  logout();
+});
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -152,8 +163,17 @@ function renderQuotes(quotes) {
 
 async function loadDashboard() {
   try {
-    const quotesRes = await fetch("/api/quotes");
+    const me = await apiFetch("/api/auth/me");
+    const name = me.user.display_name || me.user.email || "用户";
+    userLabel.textContent = me.user.is_premium ? `${name} · 高级会员` : name;
+    if (me.user.is_premium) userLabel.classList.add("premium-badge");
 
+    const quotesRes = await fetch("/api/quotes", { headers: authHeaders() });
+
+    if (quotesRes.status === 401) {
+      logout();
+      return;
+    }
     if (!quotesRes.ok) {
       throw new Error("API request failed");
     }
