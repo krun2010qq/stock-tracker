@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg2://stocktracker:stocktracker@127.0.0.1:5432/stocktracker"
 
-    admin_email: str = "admin@stocktracker.local"
+    admin_email: str = "admin@stocktracker.com"
     admin_password: str = "Admin123456"
     admin_display_name: str = "网站管理员"
 
