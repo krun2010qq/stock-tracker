@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Stock Tracker | 美股追踪面板</title>
+    <title>Stock Tracker | 全球股票追踪</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -26,9 +26,9 @@
       <header class="hero">
         <div>
           <p class="eyebrow">Live Market Dashboard</p>
-          <h1>美股追踪面板</h1>
+          <h1>全球股票追踪面板</h1>
           <p class="subtitle" id="hero-subtitle">
-            无需注册即可浏览默认行情。注册登录后可自选关注的股票和新闻数量。
+            无需注册即可浏览默认行情。注册登录后可搜索纳斯达克与 A 股并添加到关注列表。
           </p>
         </div>
         <div class="hero-meta">
@@ -41,11 +41,23 @@
         <div class="preferences-head">
           <div>
             <h2>我的关注</h2>
-            <p>选择你想追踪的股票，并设置每只股票显示的新闻条数</p>
+            <p>搜索纳斯达克或 A 股代码，添加到你关注的股票列表</p>
           </div>
           <button class="secondary-btn" id="save-preferences-btn" type="button">保存偏好</button>
         </div>
-        <div class="symbol-picker" id="symbol-picker"></div>
+        <div class="market-tabs" id="market-tabs"></div>
+        <div class="symbol-search-row">
+          <input id="symbol-search-input" type="search" placeholder="搜索股票，如 AAPL、NVDA、600519、000001" autocomplete="off" />
+          <button class="secondary-btn" id="symbol-search-btn" type="button">搜索</button>
+        </div>
+        <div class="search-results hidden" id="search-results"></div>
+        <div class="selected-symbols">
+          <div class="selected-head">
+            <span>已关注股票</span>
+            <small id="selected-count">0 / 12</small>
+          </div>
+          <div class="selected-list" id="selected-symbols"></div>
+        </div>
         <div class="news-limit-row">
           <label for="news-limit">每只股票新闻条数</label>
           <input id="news-limit" type="range" min="2" max="8" step="1" value="4" />
@@ -57,7 +69,7 @@
       <section class="cards" id="quote-cards"></section>
     </div>
 
-    <script src="/static/auth.js?v=3.1.1"></script>
-    <script src="/static/dashboard.js?v=3.1.1"></script>
+    <script src="/static/auth.js?v=3.2.0"></script>
+    <script src="/static/dashboard.js?v=3.2.0"></script>
   </body>
 </html>

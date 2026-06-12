@@ -6,11 +6,11 @@ from sqlalchemy.orm import Session
 
 from app.models import User, UserPreference
 from app.symbols import (
-    AVAILABLE_SYMBOLS,
     DEFAULT_NEWS_PER_SYMBOL,
     DEFAULT_SYMBOLS,
     MAX_NEWS_PER_SYMBOL,
     MIN_NEWS_PER_SYMBOL,
+    featured_symbols_payload,
     normalize_symbols,
     validate_symbols,
 )
@@ -86,5 +86,14 @@ def update_preferences(db: Session, user: User, favorite_symbols: list[str], new
     return prefs
 
 
-def available_symbols_payload() -> list[dict[str, str]]:
-    return [{"symbol": symbol, "name": name} for symbol, name in AVAILABLE_SYMBOLS.items()]
+def available_symbols_payload() -> dict:
+    return {
+        "featured": featured_symbols_payload(),
+        "markets": [
+            {"key": "all", "label": "全部"},
+            {"key": "nasdaq", "label": "纳斯达克"},
+            {"key": "ashare", "label": "A股"},
+        ],
+        "search_hint": "输入股票代码或公司名称搜索，支持纳斯达克与 A 股（如 AAPL、NVDA、600519、000001）",
+        "max_favorites": 12,
+    }

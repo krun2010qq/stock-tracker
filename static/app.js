@@ -4,7 +4,7 @@
     return;
   }
   const script = document.createElement("script");
-  script.src = "/static/dashboard.js?v=3.1.1";
+  script.src = "/static/dashboard.js?v=3.2.0";
   script.defer = true;
   document.body.appendChild(script);
 })();

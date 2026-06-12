@@ -26,9 +26,11 @@ class UpdatePreferencesRequest(BaseModel):
 @router.get("")
 def get_preferences(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
     prefs = get_or_create_preferences(db, user)
+    catalog = available_symbols_payload()
     return {
         "preferences": preferences_to_dict(prefs),
-        "available_symbols": available_symbols_payload(),
+        "available_symbols": catalog,
+        "max_favorites": catalog.get("max_favorites", 12),
     }
 
 

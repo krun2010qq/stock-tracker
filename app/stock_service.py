@@ -9,7 +9,7 @@ from typing import Any
 
 import httpx
 
-from app.symbols import AVAILABLE_SYMBOLS, DEFAULT_SYMBOLS
+from app.symbols import DEFAULT_SYMBOLS, FEATURED_SYMBOLS, is_ashare_symbol
 
 CACHE_TTL_SECONDS = 120
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -75,14 +75,17 @@ def _fetch_quote_yahoo(symbol: str, name: str, client: httpx.Client) -> dict[str
         change = round(price - previous_close, 2)
         change_percent = round((change / previous_close) * 100, 2)
 
+    resolved_name = meta.get("shortName") or meta.get("longName") or name or symbol
+    currency = meta.get("currency") or ("CNY" if is_ashare_symbol(symbol) else "USD")
+
     return {
         "symbol": symbol,
-        "name": name,
+        "name": resolved_name,
         "price": price,
         "previous_close": previous_close,
         "change": change,
         "change_percent": change_percent,
-        "currency": meta.get("currency") or "USD",
+        "currency": currency,
         "market_state": meta.get("marketState") or "REGULAR",
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "source": "yahoo",
@@ -125,18 +128,24 @@ def _fetch_quotes_for_symbols(symbols: tuple[str, ...]) -> list[dict[str, Any]]:
             if index > 0:
                 time.sleep(0.5)
 
-            name = AVAILABLE_SYMBOLS.get(symbol, symbol)
-            if finnhub_token:
+            name = FEATURED_SYMBOLS.get(symbol, symbol)
+            fetched = False
+
+            if finnhub_token and not is_ashare_symbol(symbol):
                 try:
                     quotes.append(_fetch_quote_finnhub(symbol, name, client, finnhub_token))
-                    continue
+                    fetched = True
                 except Exception:
-                    pass
+                    fetched = False
 
-            quotes.append(_fetch_quote_yahoo(symbol, name, client))
+            if not fetched:
+                try:
+                    quotes.append(_fetch_quote_yahoo(symbol, name, client))
+                except Exception:
+                    quotes.append(_fallback_quotes((symbol,))[0])
 
-    if not all(quote.get("price") is not None for quote in quotes):
-        raise ValueError("Incomplete quote data")
+    if not quotes:
+        raise ValueError("No quote data")
 
     return quotes
 
@@ -145,12 +154,12 @@ def _fallback_quotes(symbols: tuple[str, ...]) -> list[dict[str, Any]]:
     return [
         {
             "symbol": symbol,
-            "name": AVAILABLE_SYMBOLS.get(symbol, symbol),
+            "name": FEATURED_SYMBOLS.get(symbol, symbol),
             "price": None,
             "previous_close": None,
             "change": None,
             "change_percent": None,
-            "currency": "USD",
+            "currency": "CNY" if is_ashare_symbol(symbol) else "USD",
             "market_state": "ERROR",
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }

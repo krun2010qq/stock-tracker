@@ -8,7 +8,7 @@
 
 - 访客无需注册即可浏览默认行情（GOOGL / NVDA / AVGO）
 - 邮箱注册 / 登录
-- 登录用户可自选关注的股票（最多 6 只）和每只股票的新闻条数（2–8 条）
+- 登录用户可搜索纳斯达克与 A 股并添加关注（最多 12 只）和每只股票的新闻条数（2–8 条）
 - 管理员后台：用户列表、启用/禁用、设置管理员、删除用户
 - PostgreSQL 用户与偏好设置
 
@@ -76,7 +76,8 @@ bash deploy/setup-postgresql.sh
 - `PUT /api/preferences` 保存用户偏好
 
 ### 数据（访客可访问，登录用户返回个性化内容）
-- `GET /api/symbols` 可选股票列表
+- `GET /api/symbols` 热门股票与市场分类
+- `GET /api/symbols/search?q=NVDA&market=nasdaq` 搜索纳斯达克 / A 股
 - `GET /api/quotes` 股价 + Polymarket + 新闻
 - `GET /api/news` 新闻
 - `GET /api/polymarket` Polymarket 赔率

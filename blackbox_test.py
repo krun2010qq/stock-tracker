@@ -105,8 +105,19 @@ class BlackBoxTester:
 
     def test_symbols(self) -> None:
         code, data = self.get_json("/api/symbols")
-        ok = code == 200 and len(data.get("symbols", [])) >= 3
-        self.record("symbols list", ok, f"code={code} count={len(data.get('symbols', [])) if data else 0}")
+        ok = code == 200 and len(data.get("featured", [])) >= 3 and len(data.get("markets", [])) == 3
+        self.record("symbols catalog", ok, f"code={code} featured={len(data.get('featured', [])) if data else 0}")
+
+    def test_symbol_search(self) -> None:
+        code, data = self.get_json("/api/symbols/search?q=nvda&market=nasdaq")
+        results = data.get("results", []) if data else []
+        ok = code == 200 and any(item.get("symbol") == "NVDA" for item in results)
+        self.record("search nasdaq symbol", ok, f"code={code} hits={len(results)}")
+
+        code2, data2 = self.get_json("/api/symbols/search?q=600519&market=ashare")
+        results2 = data2.get("results", []) if data2 else []
+        ok2 = code2 == 200 and any("600519" in (item.get("symbol") or "") for item in results2)
+        self.record("search ashare symbol", ok2, f"code={code2} hits={len(results2)}")
 
     def test_register(self) -> None:
         code, data = self.post_json(
@@ -160,17 +171,17 @@ class BlackBoxTester:
 
         code2, data2 = self.put_json(
             "/api/preferences",
-            {"favorite_symbols": ["AAPL", "MSFT", "NVDA"], "news_per_symbol": 6},
+            {"favorite_symbols": ["AAPL", "MSFT", "600519.SS"], "news_per_symbol": 6},
             token=self.user_token,
         )
-        ok2 = code2 == 200 and data2["preferences"]["favorite_symbols"] == ["AAPL", "MSFT", "NVDA"]
-        self.record("save preferences", ok2, f"code={code2} prefs={data2}")
+        ok2 = code2 == 200 and data2["preferences"]["favorite_symbols"] == ["AAPL", "MSFT", "600519.SS"]
+        self.record("save preferences with ashare", ok2, f"code={code2} prefs={data2}")
 
         code3, data3 = self.get_json("/api/quotes", token=self.user_token)
         ok3 = (
             code3 == 200
             and data3.get("is_authenticated") is True
-            and data3.get("tracked_symbols") == ["AAPL", "MSFT", "NVDA"]
+            and data3.get("tracked_symbols") == ["AAPL", "MSFT", "600519.SS"]
             and data3.get("news_per_symbol") == 6
         )
         self.record("authenticated quotes use preferences", ok3, f"symbols={data3.get('tracked_symbols') if data3 else None}")
@@ -190,11 +201,17 @@ class BlackBoxTester:
             {"favorite_symbols": ["FAKE1", "FAKE2"], "news_per_symbol": 4},
             token=self.user_token,
         )
-        self.record("preferences reject invalid symbols", code6 == 400, f"code={code6}")
+        self.record("preferences reject invalid symbols", code6 in (400, 422), f"code={code6}")
 
         code7, _ = self.put_json(
             "/api/preferences",
-            {"favorite_symbols": ["AAPL", "MSFT", "NVDA", "GOOGL", "AMD", "META", "TSLA"], "news_per_symbol": 4},
+            {
+                "favorite_symbols": [
+                    "AAPL", "MSFT", "NVDA", "GOOGL", "AMD", "META",
+                    "TSLA", "AMZN", "NFLX", "AVGO", "600519.SS", "000001.SZ", "300750.SZ",
+                ],
+                "news_per_symbol": 4,
+            },
             token=self.user_token,
         )
         self.record("preferences reject too many symbols", code7 == 422, f"code={code7}")
@@ -281,6 +298,7 @@ class BlackBoxTester:
         self.test_pages()
         self.test_guest_quotes()
         self.test_symbols()
+        self.test_symbol_search()
         self.test_news_and_polymarket()
         self.test_register()
         self.test_login()

@@ -1,4 +1,5 @@
 const REFRESH_MS = 30000;
+const MAX_FAVORITES = 12;
 
 const quoteCards = document.getElementById("quote-cards");
 const statusPill = document.getElementById("status-pill");
@@ -7,15 +8,22 @@ const userLabel = document.getElementById("user-label");
 const navActions = document.getElementById("nav-actions");
 const heroSubtitle = document.getElementById("hero-subtitle");
 const preferencesPanel = document.getElementById("preferences-panel");
-const symbolPicker = document.getElementById("symbol-picker");
+const marketTabs = document.getElementById("market-tabs");
+const symbolSearchInput = document.getElementById("symbol-search-input");
+const symbolSearchBtn = document.getElementById("symbol-search-btn");
+const searchResults = document.getElementById("search-results");
+const selectedSymbolsEl = document.getElementById("selected-symbols");
+const selectedCountEl = document.getElementById("selected-count");
 const newsLimitInput = document.getElementById("news-limit");
 const newsLimitValue = document.getElementById("news-limit-value");
 const savePreferencesBtn = document.getElementById("save-preferences-btn");
 const preferencesMessage = document.getElementById("preferences-message");
 
 let currentUser = null;
-let selectedSymbols = new Set();
-let availableSymbols = [];
+let selectedSymbols = new Map();
+let catalog = { featured: [], markets: [], max_favorites: MAX_FAVORITES };
+let activeMarket = "all";
+let searchTimer = null;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -27,7 +35,8 @@ function escapeHtml(value) {
 
 function formatPrice(value, currency = "USD") {
   if (value == null) return "--";
-  return new Intl.NumberFormat("en-US", {
+  const locale = currency === "CNY" ? "zh-CN" : "en-US";
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
     minimumFractionDigits: 2,
@@ -38,7 +47,6 @@ function formatChange(change, changePercent) {
   if (change == null || changePercent == null) {
     return { text: "暂无变动数据", className: "neutral" };
   }
-
   const sign = change >= 0 ? "+" : "";
   return {
     text: `${sign}${change.toFixed(2)} (${sign}${changePercent.toFixed(2)}%)`,
@@ -74,7 +82,7 @@ function renderNav() {
       logout();
     });
     preferencesPanel.classList.remove("hidden");
-    heroSubtitle.textContent = "你已登录，可在下方自定义关注的股票和新闻数量。";
+    heroSubtitle.textContent = "你已登录，可搜索纳斯达克或 A 股并添加到你关注的股票列表。";
     return;
   }
 
@@ -84,34 +92,141 @@ function renderNav() {
     <a class="nav-btn" href="/register.html">注册</a>
   `;
   preferencesPanel.classList.add("hidden");
-  heroSubtitle.textContent = "无需注册即可浏览默认行情。注册登录后可自选关注的股票和新闻数量。";
+  heroSubtitle.textContent = "无需注册即可浏览默认行情。注册登录后可搜索纳斯达克与 A 股并添加到关注列表。";
 }
 
-function renderSymbolPicker() {
-  symbolPicker.innerHTML = availableSymbols
-    .map((item) => {
-      const checked = selectedSymbols.has(item.symbol) ? "checked" : "";
-      return `
-        <label class="symbol-chip">
-          <input type="checkbox" value="${escapeHtml(item.symbol)}" ${checked} />
-          <span class="symbol-chip-label">
-            <strong>${escapeHtml(item.symbol)}</strong>
-            <small>${escapeHtml(item.name)}</small>
-          </span>
-        </label>
-      `;
-    })
+function renderMarketTabs() {
+  const markets = catalog.markets?.length
+    ? catalog.markets
+    : [
+        { key: "all", label: "全部" },
+        { key: "nasdaq", label: "纳斯达克" },
+        { key: "ashare", label: "A股" },
+      ];
+
+  marketTabs.innerHTML = markets
+    .map(
+      (market) => `
+        <button
+          type="button"
+          class="market-tab ${market.key === activeMarket ? "active" : ""}"
+          data-market="${escapeHtml(market.key)}"
+        >
+          ${escapeHtml(market.label)}
+        </button>
+      `
+    )
     .join("");
 
-  symbolPicker.querySelectorAll('input[type="checkbox"]').forEach((input) => {
-    input.addEventListener("change", () => {
-      if (input.checked) {
-        selectedSymbols.add(input.value);
-      } else {
-        selectedSymbols.delete(input.value);
-      }
+  marketTabs.querySelectorAll(".market-tab").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeMarket = button.dataset.market;
+      renderMarketTabs();
+      const query = symbolSearchInput.value.trim();
+      if (query) runSymbolSearch(query);
     });
   });
+}
+
+function renderSelectedSymbols() {
+  const maxFavorites = catalog.max_favorites || MAX_FAVORITES;
+  selectedCountEl.textContent = `${selectedSymbols.size} / ${maxFavorites}`;
+
+  if (!selectedSymbols.size) {
+    selectedSymbolsEl.innerHTML = `<p class="selected-empty">还没有添加股票，请先搜索并添加。</p>`;
+    return;
+  }
+
+  selectedSymbolsEl.innerHTML = Array.from(selectedSymbols.entries())
+    .map(
+      ([symbol, meta]) => `
+        <div class="selected-chip">
+          <div>
+            <strong>${escapeHtml(symbol)}</strong>
+            <small>${escapeHtml(meta.name || symbol)} · ${escapeHtml(meta.market || "")}</small>
+          </div>
+          <button type="button" data-remove="${escapeHtml(symbol)}" aria-label="移除">×</button>
+        </div>
+      `
+    )
+    .join("");
+
+  selectedSymbolsEl.querySelectorAll("button[data-remove]").forEach((button) => {
+    button.addEventListener("click", () => {
+      selectedSymbols.delete(button.dataset.remove);
+      renderSelectedSymbols();
+    });
+  });
+}
+
+function addSymbol(item) {
+  const maxFavorites = catalog.max_favorites || MAX_FAVORITES;
+  if (selectedSymbols.size >= maxFavorites) {
+    showMessage(preferencesMessage, `最多添加 ${maxFavorites} 只股票`, "error");
+    return;
+  }
+  selectedSymbols.set(item.symbol, item);
+  renderSelectedSymbols();
+  searchResults.classList.add("hidden");
+  showMessage(preferencesMessage, `已添加 ${item.symbol}`, "success");
+}
+
+function renderSearchResults(results) {
+  if (!results.length) {
+    searchResults.innerHTML = `<p class="search-empty">未找到匹配股票，请换关键词试试。</p>`;
+    searchResults.classList.remove("hidden");
+    return;
+  }
+
+  searchResults.innerHTML = results
+    .map(
+      (item) => `
+        <button type="button" class="search-result-item" data-symbol="${escapeHtml(item.symbol)}">
+          <div>
+            <strong>${escapeHtml(item.symbol)}</strong>
+            <span>${escapeHtml(item.name)}</span>
+          </div>
+          <small>${escapeHtml(item.market || "")}${item.exchange ? ` · ${escapeHtml(item.exchange)}` : ""}</small>
+        </button>
+      `
+    )
+    .join("");
+
+  searchResults.querySelectorAll(".search-result-item").forEach((button) => {
+    button.addEventListener("click", () => {
+      const symbol = button.dataset.symbol;
+      const item = results.find((entry) => entry.symbol === symbol);
+      if (item) addSymbol(item);
+    });
+  });
+
+  searchResults.classList.remove("hidden");
+}
+
+async function runSymbolSearch(query) {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    searchResults.classList.add("hidden");
+    return;
+  }
+
+  try {
+    const data = await apiFetch(
+      `/api/symbols/search?q=${encodeURIComponent(trimmed)}&market=${encodeURIComponent(activeMarket)}&limit=20`
+    );
+    renderSearchResults(data.results || []);
+  } catch (error) {
+    showMessage(preferencesMessage, error.message, "error");
+  }
+}
+
+function seedSelectedSymbols(symbols) {
+  selectedSymbols = new Map();
+  for (const symbol of symbols) {
+    const featured = (catalog.featured || []).find((item) => item.symbol === symbol);
+    selectedSymbols.set(symbol, featured || { symbol, name: symbol, market: "" });
+  }
+  renderSelectedSymbols();
 }
 
 function renderPolymarketMarkets(quote) {
@@ -192,7 +307,7 @@ function renderStockNews(quote, newsLimit) {
 }
 
 function renderQuotes(quotes, newsLimit) {
-  quoteCards.style.gridTemplateColumns = `repeat(${Math.min(quotes.length, 3)}, minmax(0, 1fr))`;
+  quoteCards.style.gridTemplateColumns = "repeat(auto-fit, minmax(280px, 1fr))";
 
   if (!quotes.length) {
     quoteCards.innerHTML = `<div class="empty-state">暂无股票数据</div>`;
@@ -225,6 +340,15 @@ function renderQuotes(quotes, newsLimit) {
     .join("");
 }
 
+async function loadCatalog() {
+  try {
+    catalog = await apiFetch("/api/symbols");
+  } catch (error) {
+    catalog = { featured: [], markets: [], max_favorites: MAX_FAVORITES };
+  }
+  renderMarketTabs();
+}
+
 async function loadUserState() {
   if (!isLoggedIn()) {
     currentUser = null;
@@ -238,11 +362,14 @@ async function loadUserState() {
     renderNav();
 
     const prefs = await apiFetch("/api/preferences");
-    availableSymbols = prefs.available_symbols || [];
-    selectedSymbols = new Set(prefs.preferences.favorite_symbols || []);
+    if (prefs.available_symbols) {
+      catalog = { ...catalog, ...prefs.available_symbols };
+      renderMarketTabs();
+    }
+
+    seedSelectedSymbols(prefs.preferences.favorite_symbols || []);
     newsLimitInput.value = String(prefs.preferences.news_per_symbol || 4);
     newsLimitValue.textContent = newsLimitInput.value;
-    renderSymbolPicker();
   } catch (error) {
     clearToken();
     currentUser = null;
@@ -278,12 +405,14 @@ async function savePreferences() {
   if (!currentUser) return;
 
   showMessage(preferencesMessage, "");
+  const maxFavorites = catalog.max_favorites || MAX_FAVORITES;
+
   if (selectedSymbols.size < 1) {
-    showMessage(preferencesMessage, "请至少选择 1 只股票", "error");
+    showMessage(preferencesMessage, "请至少添加 1 只股票", "error");
     return;
   }
-  if (selectedSymbols.size > 6) {
-    showMessage(preferencesMessage, "最多选择 6 只股票", "error");
+  if (selectedSymbols.size > maxFavorites) {
+    showMessage(preferencesMessage, `最多添加 ${maxFavorites} 只股票`, "error");
     return;
   }
 
@@ -291,7 +420,7 @@ async function savePreferences() {
     await apiFetch("/api/preferences", {
       method: "PUT",
       body: JSON.stringify({
-        favorite_symbols: Array.from(selectedSymbols),
+        favorite_symbols: Array.from(selectedSymbols.keys()),
         news_per_symbol: Number(newsLimitInput.value),
       }),
     });
@@ -302,6 +431,18 @@ async function savePreferences() {
   }
 }
 
+symbolSearchBtn.addEventListener("click", () => runSymbolSearch(symbolSearchInput.value));
+symbolSearchInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    runSymbolSearch(symbolSearchInput.value);
+  }
+});
+symbolSearchInput.addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => runSymbolSearch(symbolSearchInput.value), 350);
+});
+
 newsLimitInput.addEventListener("input", () => {
   newsLimitValue.textContent = newsLimitInput.value;
 });
@@ -309,6 +450,7 @@ newsLimitInput.addEventListener("input", () => {
 savePreferencesBtn.addEventListener("click", savePreferences);
 
 (async function init() {
+  await loadCatalog();
   await loadUserState();
   await loadDashboard();
   setInterval(loadDashboard, REFRESH_MS);

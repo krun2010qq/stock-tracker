@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 
-from app.symbols import DEFAULT_SYMBOLS, POLYMARKET_SEARCH
+from app.symbols import DEFAULT_SYMBOLS, is_ashare_symbol
 
 CACHE_TTL_SECONDS = 180
 _polymarket_cache: dict[str, Any] = {"expires_at": 0.0, "key": "", "data": {}}
@@ -60,7 +60,10 @@ def _safe_float(value: Any) -> float | None:
 
 
 def _fetch_symbol_markets(symbol: str, client: httpx.Client) -> list[dict[str, Any]]:
-    query = POLYMARKET_SEARCH.get(symbol, symbol)
+    if is_ashare_symbol(symbol):
+        return []
+
+    query = symbol.split(".")[0]
     response = client.get(
         "https://gamma-api.polymarket.com/public-search",
         params={

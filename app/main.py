@@ -14,9 +14,10 @@ from app.dependencies import get_optional_user
 from app.models import User
 from app.polymarket_service import get_polymarket_by_symbol, get_polymarket_search_url
 from app.preferences_service import available_symbols_payload, get_user_news_limit, get_user_symbols
+from app.symbol_search_service import search_symbols
+from app.symbols import DEFAULT_NEWS_PER_SYMBOL, DEFAULT_SYMBOLS, SUPPORTED_MARKETS
 from app.routers import admin, auth, preferences
 from app.stock_service import get_quotes
-from app.symbols import DEFAULT_SYMBOLS, DEFAULT_NEWS_PER_SYMBOL
 from app.yahoo_news_service import get_yahoo_news_by_symbol
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -83,10 +84,22 @@ def admin_page() -> FileResponse:
 
 @app.get("/api/symbols")
 def symbols() -> dict:
+    catalog = available_symbols_payload()
     return {
-        "symbols": available_symbols_payload(),
+        **catalog,
         "defaults": list(DEFAULT_SYMBOLS),
         "default_news_per_symbol": DEFAULT_NEWS_PER_SYMBOL,
+    }
+
+
+@app.get("/api/symbols/search")
+def symbol_search(q: str = "", market: str = "all", limit: int = 20) -> dict:
+    safe_market = market if market in SUPPORTED_MARKETS else "all"
+    safe_limit = max(1, min(limit, 20))
+    return {
+        "query": q,
+        "market": safe_market,
+        "results": search_symbols(q, market=safe_market, limit=safe_limit),
     }
 
 
