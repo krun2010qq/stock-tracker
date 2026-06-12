@@ -8,12 +8,13 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from app.database import Base, engine, get_db
+from app.bootstrap import bootstrap_app
+from app.database import get_db
 from app.dependencies import get_optional_user
 from app.models import User
 from app.polymarket_service import get_polymarket_by_symbol, get_polymarket_search_url
 from app.preferences_service import available_symbols_payload, get_user_news_limit, get_user_symbols
-from app.routers import auth, preferences
+from app.routers import admin, auth, preferences
 from app.stock_service import get_quotes
 from app.symbols import DEFAULT_SYMBOLS, DEFAULT_NEWS_PER_SYMBOL
 from app.yahoo_news_service import get_yahoo_news_by_symbol
@@ -24,11 +25,11 @@ STATIC_DIR = BASE_DIR / "static"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    bootstrap_app()
     yield
 
 
-app = FastAPI(title="Stock Tracker", version="3.0.0", lifespan=lifespan)
+app = FastAPI(title="Stock Tracker", version="3.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,6 +40,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(preferences.router)
+app.include_router(admin.router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -71,6 +73,12 @@ def login_page() -> FileResponse:
 @app.get("/register.html")
 def register_page() -> FileResponse:
     return _static_page("register.html")
+
+
+@app.get("/admin")
+@app.get("/admin.html")
+def admin_page() -> FileResponse:
+    return _static_page("admin.html")
 
 
 @app.get("/api/symbols")

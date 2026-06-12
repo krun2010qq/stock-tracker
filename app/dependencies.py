@@ -39,5 +39,11 @@ def get_optional_user(
     return get_user_by_id(db, user_id)
 
 
+def get_admin_user(user=Depends(get_current_user)):
+    if not user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限")
+    return user
+
+
 def serialize_user(user) -> dict:
     return user_to_dict(user)

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>管理后台 | Stock Tracker</title>
+    <link rel="stylesheet" href="/static/style.css?v=3.1.0" />
+    <link rel="stylesheet" href="/static/auth.css?v=3.1.0" />
+    <link rel="stylesheet" href="/static/admin.css?v=3.1.0" />
+  </head>
+  <body>
+    <div class="page admin-page">
+      <nav class="top-nav">
+        <div>
+          <strong>Stock Tracker 管理后台</strong>
+          <span id="admin-label" class="form-note" style="margin-left: 10px"></span>
+        </div>
+        <div class="top-nav-actions">
+          <a class="nav-btn" href="/">返回首页</a>
+          <a class="nav-btn" href="#" id="logout-btn">退出</a>
+        </div>
+      </nav>
+
+      <section class="admin-stats" id="admin-stats"></section>
+
+      <section class="admin-panel">
+        <div class="admin-panel-head">
+          <div>
+            <h2>用户管理</h2>
+            <p>查看、启用/禁用、设置管理员或删除用户</p>
+          </div>
+          <div class="admin-search">
+            <input id="user-search" type="search" placeholder="搜索邮箱或昵称" />
+            <button class="secondary-btn" id="refresh-users-btn" type="button">刷新</button>
+          </div>
+        </div>
+        <div class="form-message" id="admin-message"></div>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>昵称</th>
+                <th>邮箱</th>
+                <th>状态</th>
+                <th>角色</th>
+                <th>关注股票</th>
+                <th>注册时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="users-table-body">
+              <tr>
+                <td colspan="7" class="empty-cell">加载中...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <script src="/static/auth.js?v=3.1.0"></script>
+    <script src="/static/admin.js?v=3.1.0"></script>
+  </body>
+</html>

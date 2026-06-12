@@ -43,6 +43,8 @@ def user_to_dict(user: User) -> dict:
         "id": user.id,
         "email": user.email,
         "display_name": user.display_name,
+        "is_active": user.is_active,
+        "is_admin": user.is_admin,
         "created_at": user.created_at.isoformat() if user.created_at else None,
     }
 

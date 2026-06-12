@@ -62,7 +62,11 @@ function renderNav() {
   if (currentUser) {
     const name = currentUser.display_name || currentUser.email || "用户";
     userLabel.textContent = name;
+    const adminLink = currentUser.is_admin
+      ? `<a class="nav-btn" href="/admin.html">管理后台</a>`
+      : "";
     navActions.innerHTML = `
+      ${adminLink}
       <a class="nav-btn" href="#" id="logout-btn">退出</a>
     `;
     document.getElementById("logout-btn").addEventListener("click", (event) => {

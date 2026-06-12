@@ -23,6 +23,9 @@ class User(Base):
     password_hash: Mapped[Optional[str]] = mapped_column(String(255))
     display_name: Mapped[str] = mapped_column(String(120), default="用户")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_premium: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    premium_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 

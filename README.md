@@ -9,6 +9,7 @@
 - 访客无需注册即可浏览默认行情（GOOGL / NVDA / AVGO）
 - 邮箱注册 / 登录
 - 登录用户可自选关注的股票（最多 6 只）和每只股票的新闻条数（2–8 条）
+- 管理员后台：用户列表、启用/禁用、设置管理员、删除用户
 - PostgreSQL 用户与偏好设置
 
 ## 页面
@@ -18,6 +19,7 @@
 | `/` | 主面板（访客可访问，登录后可自定义偏好） |
 | `/login.html` | 登录 |
 | `/register.html` | 个人注册 |
+| `/admin.html` | 管理后台（需管理员账号） |
 
 ## 本地运行
 
@@ -54,6 +56,7 @@ bash deploy/setup-postgresql.sh
 
 - `DATABASE_URL`：PostgreSQL 连接
 - `SECRET_KEY`：JWT 签名密钥
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD`：启动时自动创建的管理员账号
 
 ## API
 
@@ -61,6 +64,12 @@ bash deploy/setup-postgresql.sh
 - `POST /api/auth/register` 邮箱注册
 - `POST /api/auth/login` 邮箱登录
 - `GET /api/auth/me` 当前用户（需 Bearer Token）
+
+### 管理后台（需管理员 Bearer Token）
+- `GET /api/admin/stats` 网站统计
+- `GET /api/admin/users` 用户列表
+- `PATCH /api/admin/users/{id}` 更新用户
+- `DELETE /api/admin/users/{id}` 删除用户
 
 ### 偏好（需 Bearer Token）
 - `GET /api/preferences` 获取用户偏好

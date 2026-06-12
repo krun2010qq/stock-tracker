@@ -14,6 +14,7 @@ from app.auth_service import (
 from app.database import get_db
 from app.dependencies import get_current_user, serialize_user
 from app.models import User
+from app.preferences_service import get_or_create_preferences
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -46,10 +47,13 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> AuthRes
         password_hash=hash_password(payload.password),
         display_name=payload.display_name.strip(),
         is_active=True,
+        is_premium=False,
+        is_admin=False,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
+    get_or_create_preferences(db, user)
 
     token = create_access_token(user.id)
     return AuthResponse(access_token=token, user=user_to_dict(user))
