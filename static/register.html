@@ -12,6 +12,9 @@
       <div class="auth-card">
         <h1>个人注册</h1>
         <p>免费注册账号，自选关注的股票和新闻</p>
+        <p class="form-note" style="margin-bottom: 16px">
+          <a href="/">无需注册，直接浏览默认行情 →</a>
+        </p>
 
         <form class="auth-form" id="register-form">
           <div class="form-field">
@@ -41,7 +44,7 @@
       </div>
     </div>
 
-    <script src="/static/auth.js?v=3.0.1"></script>
+    <script src="/static/auth.js?v=3.1.1"></script>
     <script>
       document.getElementById("register-form").addEventListener("submit", async (event) => {
         event.preventDefault();

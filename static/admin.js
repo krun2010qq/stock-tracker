@@ -77,10 +77,10 @@ function renderUsers(users) {
           <td>${formatDate(user.created_at)}</td>
           <td>
             <div class="admin-actions">
-              <button type="button" data-action="toggle-active" data-id="${escapeHtml(user.id)}" data-active="${user.is_active}">
+              <button type="button" data-action="toggle-active" data-id="${escapeHtml(user.id)}" data-active="${user.is_active ? "true" : "false"}">
                 ${user.is_active ? "禁用" : "启用"}
               </button>
-              <button type="button" data-action="toggle-admin" data-id="${escapeHtml(user.id)}" data-admin="${user.is_admin}">
+              <button type="button" data-action="toggle-admin" data-id="${escapeHtml(user.id)}" data-admin="${user.is_admin ? "true" : "false"}">
                 ${user.is_admin ? "取消管理员" : "设为管理员"}
               </button>
               <button type="button" class="danger" data-action="delete" data-id="${escapeHtml(user.id)}">删除</button>

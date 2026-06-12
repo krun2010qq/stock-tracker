@@ -247,6 +247,10 @@ async function loadUserState() {
     clearToken();
     currentUser = null;
     renderNav();
+    if (error.message.includes("禁用") || error.message.includes("未登录") || error.message.includes("过期")) {
+      statusPill.textContent = "登录状态已失效，请重新登录";
+      statusPill.className = "status-pill error";
+    }
   }
 }
 

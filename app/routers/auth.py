@@ -64,6 +64,8 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> AuthResponse:
     user = get_user_by_email(db, payload.email)
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="邮箱或密码错误")
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用，请联系管理员")
 
     token = create_access_token(user.id)
     return AuthResponse(access_token=token, user=user_to_dict(user))

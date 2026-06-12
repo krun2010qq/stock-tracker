@@ -36,7 +36,10 @@ def get_optional_user(
     user_id = decode_access_token(credentials.credentials)
     if not user_id:
         return None
-    return get_user_by_id(db, user_id)
+    user = get_user_by_id(db, user_id)
+    if not user or not user.is_active:
+        return None
+    return user
 
 
 def get_admin_user(user=Depends(get_current_user)):
