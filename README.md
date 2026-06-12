@@ -1,25 +1,23 @@
 # Stock Tracker
 
-追踪 **GOOGL**、**NVDA**、**AVGO** 三支美股的实时报价、Polymarket 赔率与 Yahoo Finance 新闻。
+追踪美股的实时报价、Polymarket 赔率与 Yahoo Finance 新闻。
 
 在线演示：http://49.51.195.205/
 
 ## 功能
 
-- 用户注册 / 登录（邮箱个人注册）
-- 微信 / 支付宝登录（需配置开放平台密钥）
-- 微信 / 支付宝会员订阅支付（需配置商户号；默认演示模式）
-- PostgreSQL 用户与订单数据库
-- 实时股价、Polymarket 赔率、每股票 4 条 Yahoo 新闻
+- 访客无需注册即可浏览默认行情（GOOGL / NVDA / AVGO）
+- 邮箱注册 / 登录
+- 登录用户可自选关注的股票（最多 6 只）和每只股票的新闻条数（2–8 条）
+- PostgreSQL 用户与偏好设置
 
 ## 页面
 
 | 路径 | 说明 |
 |------|------|
-| `/` | 主面板（需登录） |
+| `/` | 主面板（访客可访问，登录后可自定义偏好） |
 | `/login.html` | 登录 |
 | `/register.html` | 个人注册 |
-| `/pricing.html` | 会员订阅（微信/支付宝） |
 
 ## 本地运行
 
@@ -56,27 +54,24 @@ bash deploy/setup-postgresql.sh
 
 - `DATABASE_URL`：PostgreSQL 连接
 - `SECRET_KEY`：JWT 签名密钥
-- `PAYMENT_DEMO_MODE=true`：演示支付（无需真实商户号）
-- `WECHAT_*` / `ALIPAY_*`：正式接入微信/支付宝时填写
 
 ## API
 
 ### 认证
 - `POST /api/auth/register` 邮箱注册
 - `POST /api/auth/login` 邮箱登录
-- `GET /api/auth/me` 当前用户
-- `GET /api/auth/wechat/login` 微信 OAuth
-- `GET /api/auth/alipay/login` 支付宝 OAuth
+- `GET /api/auth/me` 当前用户（需 Bearer Token）
 
-### 支付
-- `GET /api/payments/plans` 订阅方案
-- `POST /api/payments/create` 创建订单
-- `POST /api/payments/demo/complete/{order_no}` 演示模式完成支付
+### 偏好（需 Bearer Token）
+- `GET /api/preferences` 获取用户偏好
+- `PUT /api/preferences` 保存用户偏好
 
-### 数据（需 Bearer Token）
-- `GET /api/quotes`
-- `GET /api/news`
-- `GET /api/health`
+### 数据（访客可访问，登录用户返回个性化内容）
+- `GET /api/symbols` 可选股票列表
+- `GET /api/quotes` 股价 + Polymarket + 新闻
+- `GET /api/news` 新闻
+- `GET /api/polymarket` Polymarket 赔率
+- `GET /api/health` 健康检查
 
 ## 服务器部署
 
@@ -94,11 +89,11 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now postgresql stock-tracker nginx
 ```
 
-## 正式接入微信 / 支付宝
+快速更新已部署服务器：
 
-1. **微信登录**：在微信开放平台创建网站应用，配置回调 `https://你的域名/api/auth/wechat/callback`
-2. **支付宝登录**：在支付宝开放平台创建应用，配置回调 `https://你的域名/api/auth/alipay/callback`
-3. **微信支付 / 支付宝支付**：开通商户号，填写 `.env` 中对应密钥，并设置 `PAYMENT_DEMO_MODE=false`
+```bash
+python remote_update.py
+```
 
 ## 数据来源
 

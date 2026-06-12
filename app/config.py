@@ -11,20 +11,5 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg2://stocktracker:stocktracker@127.0.0.1:5432/stocktracker"
 
-    subscription_price_yuan: float = 29.9
-    subscription_days: int = 30
-
-    wechat_app_id: str = ""
-    wechat_app_secret: str = ""
-    wechat_mch_id: str = ""
-    wechat_pay_api_key: str = ""
-
-    alipay_app_id: str = ""
-    alipay_private_key: str = ""
-    alipay_public_key: str = ""
-    alipay_gateway: str = "https://openapi.alipay.com/gateway.do"
-
-    payment_demo_mode: bool = True
-
 
 settings = Settings()

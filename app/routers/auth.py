@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
@@ -15,21 +14,8 @@ from app.auth_service import (
 from app.database import get_db
 from app.dependencies import get_current_user, serialize_user
 from app.models import User
-from app.oauth_service import (
-    alipay_oauth_enabled,
-    build_alipay_login_url,
-    build_wechat_login_url,
-    exchange_alipay_code,
-    exchange_wechat_code,
-    get_or_create_oauth_user,
-    new_oauth_state,
-    wechat_oauth_enabled,
-)
-from app.models import OAuthProvider
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-
-_oauth_states: dict[str, str] = {}
 
 
 class RegisterRequest(BaseModel):
@@ -82,61 +68,3 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> AuthResponse:
 @router.get("/me")
 def me(user: User = Depends(get_current_user)) -> dict:
     return {"user": serialize_user(user)}
-
-
-@router.get("/providers")
-def providers() -> dict:
-    return {
-        "wechat": wechat_oauth_enabled(),
-        "alipay": alipay_oauth_enabled(),
-    }
-
-
-@router.get("/wechat/login")
-def wechat_login() -> RedirectResponse:
-    if not wechat_oauth_enabled():
-        raise HTTPException(status_code=503, detail="微信登录尚未配置，请在 .env 中填写 WECHAT_APP_ID 和 WECHAT_APP_SECRET")
-    state = new_oauth_state()
-    _oauth_states[state] = "wechat"
-    return RedirectResponse(build_wechat_login_url(state))
-
-
-@router.get("/wechat/callback")
-async def wechat_callback(code: str = Query(...), state: str = Query(...), db: Session = Depends(get_db)):
-    if _oauth_states.pop(state, None) != "wechat":
-        raise HTTPException(status_code=400, detail="无效的 OAuth 状态")
-
-    profile = await exchange_wechat_code(code)
-    user = get_or_create_oauth_user(
-        db,
-        OAuthProvider.WECHAT,
-        profile["provider_user_id"],
-        profile.get("nickname"),
-    )
-    token = create_access_token(user.id)
-    return RedirectResponse(f"/login.html?token={token}")
-
-
-@router.get("/alipay/login")
-def alipay_login() -> RedirectResponse:
-    if not alipay_oauth_enabled():
-        raise HTTPException(status_code=503, detail="支付宝登录尚未配置，请在 .env 中填写 ALIPAY_APP_ID")
-    state = new_oauth_state()
-    _oauth_states[state] = "alipay"
-    return RedirectResponse(build_alipay_login_url(state))
-
-
-@router.get("/alipay/callback")
-async def alipay_callback(code: str = Query(...), state: str = Query(...), db: Session = Depends(get_db)):
-    if _oauth_states.pop(state, None) != "alipay":
-        raise HTTPException(status_code=400, detail="无效的 OAuth 状态")
-
-    profile = await exchange_alipay_code(code)
-    user = get_or_create_oauth_user(
-        db,
-        OAuthProvider.ALIPAY,
-        profile["provider_user_id"],
-        profile.get("nickname"),
-    )
-    token = create_access_token(user.id)
-    return RedirectResponse(f"/login.html?token={token}")

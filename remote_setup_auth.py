@@ -52,10 +52,7 @@ def main() -> None:
 
     env_content = f"""APP_URL=http://49.51.195.205
 SECRET_KEY={secret_key}
-PAYMENT_DEMO_MODE=true
 DATABASE_URL=postgresql+psycopg2://stocktracker:{db_pass}@127.0.0.1:5432/stocktracker
-SUBSCRIPTION_PRICE_YUAN=29.9
-SUBSCRIPTION_DAYS=30
 """
 
     commands = f"""

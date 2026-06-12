@@ -1,28 +1,24 @@
 from __future__ import annotations
 
 import json
-import os
 import time
-from datetime import datetime, timezone
 from typing import Any
 
 import httpx
 
-TRACKED_SYMBOLS = ("GOOGL", "NVDA", "AVGO")
-
-POLYMARKET_SEARCH = {
-    "GOOGL": "GOOGL Google",
-    "NVDA": "NVDA NVIDIA",
-    "AVGO": "AVGO Broadcom",
-}
+from app.symbols import DEFAULT_SYMBOLS, POLYMARKET_SEARCH
 
 CACHE_TTL_SECONDS = 180
-_polymarket_cache: dict[str, Any] = {"expires_at": 0.0, "data": {}}
+_polymarket_cache: dict[str, Any] = {"expires_at": 0.0, "key": "", "data": {}}
 
 HEADERS = {
     "User-Agent": "stock-tracker/1.0",
     "Accept": "application/json",
 }
+
+
+def _cache_key(symbols: tuple[str, ...]) -> str:
+    return ",".join(symbols)
 
 
 def _parse_json_list(value: Any) -> list[Any]:
@@ -52,6 +48,15 @@ def _market_url(event_slug: str | None, market_slug: str | None) -> str:
     if event_slug:
         return f"https://polymarket.com/event/{event_slug}"
     return "https://polymarket.com/"
+
+
+def _safe_float(value: Any) -> float | None:
+    try:
+        if value is None or value == "":
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _fetch_symbol_markets(symbol: str, client: httpx.Client) -> list[dict[str, Any]]:
@@ -115,23 +120,17 @@ def _fetch_symbol_markets(symbol: str, client: httpx.Client) -> list[dict[str, A
     return markets
 
 
-def _safe_float(value: Any) -> float | None:
-    try:
-        if value is None or value == "":
-            return None
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def get_polymarket_by_symbol() -> dict[str, list[dict[str, Any]]]:
+def get_polymarket_by_symbol(symbols: list[str] | None = None) -> dict[str, list[dict[str, Any]]]:
+    requested = tuple(symbols or DEFAULT_SYMBOLS)
+    key = _cache_key(requested)
     now = time.time()
-    if _polymarket_cache["data"] and now < _polymarket_cache["expires_at"]:
+
+    if _polymarket_cache["data"] and _polymarket_cache["key"] == key and now < _polymarket_cache["expires_at"]:
         return _polymarket_cache["data"]
 
     result: dict[str, list[dict[str, Any]]] = {}
     with httpx.Client(timeout=20.0, headers=HEADERS) as client:
-        for index, symbol in enumerate(TRACKED_SYMBOLS):
+        for index, symbol in enumerate(requested):
             if index > 0:
                 time.sleep(0.4)
             try:
@@ -139,10 +138,11 @@ def get_polymarket_by_symbol() -> dict[str, list[dict[str, Any]]]:
             except Exception:
                 result[symbol] = []
 
-    for symbol in TRACKED_SYMBOLS:
+    for symbol in requested:
         result.setdefault(symbol, [])
 
     _polymarket_cache["data"] = result
+    _polymarket_cache["key"] = key
     _polymarket_cache["expires_at"] = now + CACHE_TTL_SECONDS
     return result
 

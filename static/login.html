@@ -11,7 +11,7 @@
     <div class="auth-shell">
       <div class="auth-card">
         <h1>登录</h1>
-        <p>登录后查看 GOOGL / NVDA / AVGO 实时面板</p>
+        <p>登录后可自定义关注的股票和新闻数量</p>
 
         <form class="auth-form" id="login-form">
           <div class="form-field">
@@ -26,21 +26,16 @@
           <button class="primary-btn" type="submit">邮箱登录</button>
         </form>
 
-        <div class="divider" style="margin: 20px 0">或使用第三方登录</div>
-        <div class="oauth-group" id="oauth-group"></div>
-
         <div class="auth-footer">
           还没有账号？<a href="/register.html">个人注册</a>
+          · <a href="/">返回首页</a>
         </div>
       </div>
     </div>
 
     <script src="/static/auth.js"></script>
     <script>
-      saveOAuthTokenFromQuery();
       if (getToken()) window.location.href = "/";
-
-      loadAuthProviders("oauth-group");
 
       document.getElementById("login-form").addEventListener("submit", async (event) => {
         event.preventDefault();

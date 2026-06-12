@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Stock Tracker | GOOGL · NVDA · AVGO</title>
+    <title>Stock Tracker | 美股追踪面板</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -20,19 +20,15 @@
           <strong>Stock Tracker</strong>
           <span id="user-label" class="form-note" style="margin-left: 10px"></span>
         </div>
-        <div class="top-nav-actions">
-          <a class="nav-btn" href="/pricing.html">会员订阅</a>
-          <a class="nav-btn" href="/register.html">注册</a>
-          <a class="nav-btn" href="#" id="logout-btn">退出</a>
-        </div>
+        <div class="top-nav-actions" id="nav-actions"></div>
       </nav>
 
       <header class="hero">
         <div>
           <p class="eyebrow">Live Market Dashboard</p>
           <h1>美股追踪面板</h1>
-          <p class="subtitle">
-            实时追踪 Google、NVIDIA、Broadcom 股价，Polymarket 预测赔率，以及 Yahoo Finance 最新新闻
+          <p class="subtitle" id="hero-subtitle">
+            无需注册即可浏览默认行情。注册登录后可自选关注的股票和新闻数量。
           </p>
         </div>
         <div class="hero-meta">
@@ -40,6 +36,23 @@
           <div class="last-updated" id="last-updated">--</div>
         </div>
       </header>
+
+      <section class="preferences-panel hidden" id="preferences-panel">
+        <div class="preferences-head">
+          <div>
+            <h2>我的关注</h2>
+            <p>选择你想追踪的股票，并设置每只股票显示的新闻条数</p>
+          </div>
+          <button class="secondary-btn" id="save-preferences-btn" type="button">保存偏好</button>
+        </div>
+        <div class="symbol-picker" id="symbol-picker"></div>
+        <div class="news-limit-row">
+          <label for="news-limit">每只股票新闻条数</label>
+          <input id="news-limit" type="range" min="2" max="8" step="1" value="4" />
+          <span id="news-limit-value">4</span>
+        </div>
+        <div class="form-message" id="preferences-message"></div>
+      </section>
 
       <section class="cards" id="quote-cards"></section>
     </div>

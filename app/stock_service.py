@@ -9,17 +9,13 @@ from typing import Any
 
 import httpx
 
-TRACKED_SYMBOLS: dict[str, str] = {
-    "GOOGL": "Alphabet (Google)",
-    "NVDA": "NVIDIA",
-    "AVGO": "Broadcom",
-}
+from app.symbols import AVAILABLE_SYMBOLS, DEFAULT_SYMBOLS
 
 CACHE_TTL_SECONDS = 120
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 QUOTE_CACHE_FILE = DATA_DIR / "quotes.json"
 
-_quote_cache: dict[str, Any] = {"expires_at": 0.0, "data": []}
+_quote_cache: dict[str, Any] = {"expires_at": 0.0, "key": "", "data": []}
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -34,6 +30,10 @@ def _safe_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _cache_key(symbols: tuple[str, ...]) -> str:
+    return ",".join(symbols)
 
 
 def _load_file_cache() -> list[dict[str, Any]]:
@@ -116,15 +116,16 @@ def _fetch_quote_finnhub(symbol: str, name: str, client: httpx.Client, token: st
     }
 
 
-def _fetch_all_quotes() -> list[dict[str, Any]]:
+def _fetch_quotes_for_symbols(symbols: tuple[str, ...]) -> list[dict[str, Any]]:
     finnhub_token = os.environ.get("FINNHUB_API_KEY", "").strip()
     quotes: list[dict[str, Any]] = []
 
     with httpx.Client(timeout=20.0, headers=HEADERS) as client:
-        for index, (symbol, name) in enumerate(TRACKED_SYMBOLS.items()):
+        for index, symbol in enumerate(symbols):
             if index > 0:
                 time.sleep(0.5)
 
+            name = AVAILABLE_SYMBOLS.get(symbol, symbol)
             if finnhub_token:
                 try:
                     quotes.append(_fetch_quote_finnhub(symbol, name, client, finnhub_token))
@@ -140,34 +141,44 @@ def _fetch_all_quotes() -> list[dict[str, Any]]:
     return quotes
 
 
-def get_quotes() -> list[dict[str, Any]]:
+def _fallback_quotes(symbols: tuple[str, ...]) -> list[dict[str, Any]]:
+    return [
+        {
+            "symbol": symbol,
+            "name": AVAILABLE_SYMBOLS.get(symbol, symbol),
+            "price": None,
+            "previous_close": None,
+            "change": None,
+            "change_percent": None,
+            "currency": "USD",
+            "market_state": "ERROR",
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        for symbol in symbols
+    ]
+
+
+def get_quotes(symbols: list[str] | None = None) -> list[dict[str, Any]]:
+    requested = tuple(symbols or DEFAULT_SYMBOLS)
+    key = _cache_key(requested)
     now = time.time()
-    if _quote_cache["data"] and now < _quote_cache["expires_at"]:
+
+    if _quote_cache["data"] and _quote_cache["key"] == key and now < _quote_cache["expires_at"]:
         return _quote_cache["data"]
 
     quotes: list[dict[str, Any]] = []
     try:
-        quotes = _fetch_all_quotes()
+        quotes = _fetch_quotes_for_symbols(requested)
         _save_file_cache(quotes)
     except Exception:
-        quotes = _load_file_cache()
+        file_quotes = _load_file_cache()
+        quote_map = {quote["symbol"]: quote for quote in file_quotes}
+        quotes = [quote_map[symbol] for symbol in requested if symbol in quote_map]
 
     if not quotes:
-        quotes = [
-            {
-                "symbol": symbol,
-                "name": name,
-                "price": None,
-                "previous_close": None,
-                "change": None,
-                "change_percent": None,
-                "currency": "USD",
-                "market_state": "ERROR",
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            }
-            for symbol, name in TRACKED_SYMBOLS.items()
-        ]
+        quotes = _fallback_quotes(requested)
 
     _quote_cache["data"] = quotes
+    _quote_cache["key"] = key
     _quote_cache["expires_at"] = now + CACHE_TTL_SECONDS
     return quotes

@@ -367,6 +367,81 @@ h1 {
   text-align: center;
 }
 
+.preferences-panel {
+  margin-bottom: 28px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.preferences-panel.hidden {
+  display: none;
+}
+
+.preferences-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.preferences-head h2 {
+  margin: 0 0 6px;
+  font-size: 1.35rem;
+}
+
+.preferences-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.symbol-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.symbol-chip {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+}
+
+.symbol-chip input {
+  accent-color: var(--blue);
+}
+
+.symbol-chip-label {
+  display: grid;
+  gap: 2px;
+}
+
+.symbol-chip-label small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.news-limit-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+}
+
+.news-limit-row input[type="range"] {
+  flex: 1;
+  max-width: 280px;
+}
+
 @media (max-width: 900px) {
   .hero,
   .cards {

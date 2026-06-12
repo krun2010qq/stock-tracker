@@ -1,20 +1,21 @@
 const REFRESH_MS = 30000;
-const NEWS_PER_STOCK = 4;
-
-if (!requireAuth()) {
-  throw new Error("redirecting to login");
-}
 
 const quoteCards = document.getElementById("quote-cards");
 const statusPill = document.getElementById("status-pill");
 const lastUpdated = document.getElementById("last-updated");
 const userLabel = document.getElementById("user-label");
-const logoutBtn = document.getElementById("logout-btn");
+const navActions = document.getElementById("nav-actions");
+const heroSubtitle = document.getElementById("hero-subtitle");
+const preferencesPanel = document.getElementById("preferences-panel");
+const symbolPicker = document.getElementById("symbol-picker");
+const newsLimitInput = document.getElementById("news-limit");
+const newsLimitValue = document.getElementById("news-limit-value");
+const savePreferencesBtn = document.getElementById("save-preferences-btn");
+const preferencesMessage = document.getElementById("preferences-message");
 
-logoutBtn.addEventListener("click", (event) => {
-  event.preventDefault();
-  logout();
-});
+let currentUser = null;
+let selectedSymbols = new Set();
+let availableSymbols = [];
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -55,6 +56,58 @@ function formatDate(value) {
 function formatOdds(value) {
   if (value == null) return "--";
   return `${value.toFixed(1)}%`;
+}
+
+function renderNav() {
+  if (currentUser) {
+    const name = currentUser.display_name || currentUser.email || "用户";
+    userLabel.textContent = name;
+    navActions.innerHTML = `
+      <a class="nav-btn" href="#" id="logout-btn">退出</a>
+    `;
+    document.getElementById("logout-btn").addEventListener("click", (event) => {
+      event.preventDefault();
+      logout();
+    });
+    preferencesPanel.classList.remove("hidden");
+    heroSubtitle.textContent = "你已登录，可在下方自定义关注的股票和新闻数量。";
+    return;
+  }
+
+  userLabel.textContent = "访客模式";
+  navActions.innerHTML = `
+    <a class="nav-btn" href="/login.html">登录</a>
+    <a class="nav-btn" href="/register.html">注册</a>
+  `;
+  preferencesPanel.classList.add("hidden");
+  heroSubtitle.textContent = "无需注册即可浏览默认行情。注册登录后可自选关注的股票和新闻数量。";
+}
+
+function renderSymbolPicker() {
+  symbolPicker.innerHTML = availableSymbols
+    .map((item) => {
+      const checked = selectedSymbols.has(item.symbol) ? "checked" : "";
+      return `
+        <label class="symbol-chip">
+          <input type="checkbox" value="${escapeHtml(item.symbol)}" ${checked} />
+          <span class="symbol-chip-label">
+            <strong>${escapeHtml(item.symbol)}</strong>
+            <small>${escapeHtml(item.name)}</small>
+          </span>
+        </label>
+      `;
+    })
+    .join("");
+
+  symbolPicker.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+    input.addEventListener("change", () => {
+      if (input.checked) {
+        selectedSymbols.add(input.value);
+      } else {
+        selectedSymbols.delete(input.value);
+      }
+    });
+  });
 }
 
 function renderPolymarketMarkets(quote) {
@@ -99,8 +152,8 @@ function renderPolymarketMarkets(quote) {
   `;
 }
 
-function renderStockNews(quote) {
-  const news = (quote.news || []).slice(0, NEWS_PER_STOCK);
+function renderStockNews(quote, newsLimit) {
+  const news = (quote.news || []).slice(0, newsLimit);
 
   if (!news.length) {
     return `
@@ -134,7 +187,14 @@ function renderStockNews(quote) {
   `;
 }
 
-function renderQuotes(quotes) {
+function renderQuotes(quotes, newsLimit) {
+  quoteCards.style.gridTemplateColumns = `repeat(${Math.min(quotes.length, 3)}, minmax(0, 1fr))`;
+
+  if (!quotes.length) {
+    quoteCards.innerHTML = `<div class="empty-state">暂无股票数据</div>`;
+    return;
+  }
+
   quoteCards.innerHTML = quotes
     .map((quote) => {
       const change = formatChange(quote.change, quote.change_percent);
@@ -154,34 +214,49 @@ function renderQuotes(quotes) {
             <span>${formatDate(quote.updated_at)}</span>
           </div>
           ${renderPolymarketMarkets(quote)}
-          ${renderStockNews(quote)}
+          ${renderStockNews(quote, newsLimit)}
         </article>
       `;
     })
     .join("");
 }
 
-async function loadDashboard() {
+async function loadUserState() {
+  if (!isLoggedIn()) {
+    currentUser = null;
+    renderNav();
+    return;
+  }
+
   try {
     const me = await apiFetch("/api/auth/me");
-    const name = me.user.display_name || me.user.email || "用户";
-    userLabel.textContent = me.user.is_premium ? `${name} · 高级会员` : name;
-    if (me.user.is_premium) userLabel.classList.add("premium-badge");
+    currentUser = me.user;
+    renderNav();
 
+    const prefs = await apiFetch("/api/preferences");
+    availableSymbols = prefs.available_symbols || [];
+    selectedSymbols = new Set(prefs.preferences.favorite_symbols || []);
+    newsLimitInput.value = String(prefs.preferences.news_per_symbol || 4);
+    newsLimitValue.textContent = newsLimitInput.value;
+    renderSymbolPicker();
+  } catch (error) {
+    clearToken();
+    currentUser = null;
+    renderNav();
+  }
+}
+
+async function loadDashboard() {
+  try {
     const quotesRes = await fetch("/api/quotes", { headers: authHeaders() });
-
-    if (quotesRes.status === 401) {
-      logout();
-      return;
-    }
     if (!quotesRes.ok) {
       throw new Error("API request failed");
     }
 
     const quotesData = await quotesRes.json();
-    renderQuotes(quotesData.quotes || []);
+    renderQuotes(quotesData.quotes || [], quotesData.news_per_symbol || 4);
 
-    statusPill.textContent = "数据已更新";
+    statusPill.textContent = quotesData.is_authenticated ? "已登录 · 数据已更新" : "访客模式 · 数据已更新";
     statusPill.className = "status-pill ok";
     lastUpdated.textContent = `最后刷新：${new Date().toLocaleString("zh-CN", { hour12: false })}`;
   } catch (error) {
@@ -191,5 +266,42 @@ async function loadDashboard() {
   }
 }
 
-loadDashboard();
-setInterval(loadDashboard, REFRESH_MS);
+async function savePreferences() {
+  if (!currentUser) return;
+
+  showMessage(preferencesMessage, "");
+  if (selectedSymbols.size < 1) {
+    showMessage(preferencesMessage, "请至少选择 1 只股票", "error");
+    return;
+  }
+  if (selectedSymbols.size > 6) {
+    showMessage(preferencesMessage, "最多选择 6 只股票", "error");
+    return;
+  }
+
+  try {
+    await apiFetch("/api/preferences", {
+      method: "PUT",
+      body: JSON.stringify({
+        favorite_symbols: Array.from(selectedSymbols),
+        news_per_symbol: Number(newsLimitInput.value),
+      }),
+    });
+    showMessage(preferencesMessage, "偏好已保存，正在刷新数据...", "success");
+    await loadDashboard();
+  } catch (error) {
+    showMessage(preferencesMessage, error.message, "error");
+  }
+}
+
+newsLimitInput.addEventListener("input", () => {
+  newsLimitValue.textContent = newsLimitInput.value;
+});
+
+savePreferencesBtn.addEventListener("click", savePreferences);
+
+(async function init() {
+  await loadUserState();
+  await loadDashboard();
+  setInterval(loadDashboard, REFRESH_MS);
+})();

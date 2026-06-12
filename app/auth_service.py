@@ -42,20 +42,9 @@ def user_to_dict(user: User) -> dict:
     return {
         "id": user.id,
         "email": user.email,
-        "phone": user.phone,
         "display_name": user.display_name,
-        "is_premium": user.is_premium,
-        "premium_until": user.premium_until.isoformat() if user.premium_until else None,
         "created_at": user.created_at.isoformat() if user.created_at else None,
     }
-
-
-def activate_premium(user: User, days: int | None = None) -> None:
-    days = days or settings.subscription_days
-    now = datetime.now(timezone.utc)
-    base = user.premium_until if user.premium_until and user.premium_until > now else now
-    user.is_premium = True
-    user.premium_until = base + timedelta(days=days)
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:

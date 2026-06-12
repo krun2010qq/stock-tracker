@@ -11,7 +11,7 @@
     <div class="auth-shell">
       <div class="auth-card">
         <h1>个人注册</h1>
-        <p>免费注册账号，立即使用美股追踪面板</p>
+        <p>免费注册账号，自选关注的股票和新闻</p>
 
         <form class="auth-form" id="register-form">
           <div class="form-field">
@@ -34,23 +34,15 @@
           <button class="primary-btn" type="submit">创建账号</button>
         </form>
 
-        <div class="divider" style="margin: 20px 0">或使用第三方注册/登录</div>
-        <div class="oauth-group" id="oauth-group"></div>
-
-        <p class="form-note" style="margin-top: 16px">
-          注册后可前往 <a href="/pricing.html">会员订阅</a>，使用微信或支付宝开通高级会员。
-        </p>
-
         <div class="auth-footer">
           已有账号？<a href="/login.html">去登录</a>
+          · <a href="/">返回首页</a>
         </div>
       </div>
     </div>
 
     <script src="/static/auth.js"></script>
     <script>
-      loadAuthProviders("oauth-group");
-
       document.getElementById("register-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         const message = document.getElementById("form-message");
