@@ -12,6 +12,9 @@
       <div class="auth-card">
         <h1>登录</h1>
         <p>登录后可自定义关注的股票和新闻数量</p>
+        <p class="form-note" style="margin-bottom: 16px">
+          <a href="/">无需登录，直接浏览默认行情 →</a>
+        </p>
 
         <form class="auth-form" id="login-form">
           <div class="form-field">
@@ -33,7 +36,7 @@
       </div>
     </div>
 
-    <script src="/static/auth.js"></script>
+    <script src="/static/auth.js?v=3.0.1"></script>
     <script>
       if (getToken()) window.location.href = "/";
 
