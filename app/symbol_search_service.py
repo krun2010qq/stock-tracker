@@ -93,13 +93,18 @@ def search_symbols(query: str, market: str = MARKET_ALL, limit: int = MAX_RESULT
     canonical = canonicalize_symbol(query)
     search_query = canonical or query
 
-    with httpx.Client(timeout=15.0, headers=HEADERS) as client:
-        response = client.get(
-            SEARCH_URL,
-            params={"q": search_query, "quotesCount": 40, "newsCount": 0},
-        )
-        response.raise_for_status()
-        payload = response.json()
+    try:
+        with httpx.Client(timeout=15.0, headers=HEADERS) as client:
+            response = client.get(
+                SEARCH_URL,
+                params={"q": search_query, "quotesCount": 40, "newsCount": 0},
+            )
+            if response.status_code == 429:
+                return []
+            response.raise_for_status()
+            payload = response.json()
+    except Exception:
+        return []
 
     results: list[dict[str, str]] = []
     seen: set[str] = set()
@@ -137,6 +142,8 @@ def verify_symbol_exists(symbol: str) -> bool:
     try:
         with httpx.Client(timeout=12.0, headers=HEADERS) as client:
             response = client.get(chart_url, params={"interval": "1d", "range": "1d"})
+            if response.status_code == 429:
+                return canonicalize_symbol(symbol) is not None
             response.raise_for_status()
             payload = response.json()
     except Exception:

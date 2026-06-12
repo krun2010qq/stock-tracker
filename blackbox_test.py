@@ -109,15 +109,27 @@ class BlackBoxTester:
         self.record("symbols catalog", ok, f"code={code} featured={len(data.get('featured', [])) if data else 0}")
 
     def test_symbol_search(self) -> None:
-        code, data = self.get_json("/api/symbols/search?q=nvda&market=nasdaq")
-        results = data.get("results", []) if data else []
-        ok = code == 200 and any(item.get("symbol") == "NVDA" for item in results)
-        self.record("search nasdaq symbol", ok, f"code={code} hits={len(results)}")
+        results: list[dict] = []
+        for attempt in range(4):
+            code, data = self.get_json("/api/symbols/search?q=nvda&market=nasdaq")
+            results = data.get("results", []) if data else []
+            if code == 200 and results:
+                break
+            time.sleep(2)
 
-        code2, data2 = self.get_json("/api/symbols/search?q=600519&market=ashare")
-        results2 = data2.get("results", []) if data2 else []
-        ok2 = code2 == 200 and any("600519" in (item.get("symbol") or "") for item in results2)
-        self.record("search ashare symbol", ok2, f"code={code2} hits={len(results2)}")
+        ok = any(item.get("symbol") == "NVDA" for item in results)
+        self.record("search nasdaq symbol", ok, f"hits={len(results)}")
+
+        results2: list[dict] = []
+        for attempt in range(4):
+            code2, data2 = self.get_json("/api/symbols/search?q=600519&market=ashare")
+            results2 = data2.get("results", []) if data2 else []
+            if code2 == 200 and results2:
+                break
+            time.sleep(2)
+
+        ok2 = any("600519" in (item.get("symbol") or "") for item in results2)
+        self.record("search ashare symbol", ok2, f"hits={len(results2)}")
 
     def test_register(self) -> None:
         code, data = self.post_json(

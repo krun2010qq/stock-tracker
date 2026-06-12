@@ -95,7 +95,12 @@ def validate_symbols(symbols: list[str], *, verify_exists: bool = True) -> list[
     if verify_exists:
         from app.symbol_search_service import verify_symbol_exists
 
-        invalid = [symbol for symbol in normalized if not verify_symbol_exists(symbol)]
+        invalid: list[str] = []
+        for symbol in normalized:
+            if symbol in FEATURED_SYMBOLS:
+                continue
+            if not verify_symbol_exists(symbol):
+                invalid.append(symbol)
         if invalid:
             raise ValueError(f"以下股票代码无效或暂无行情：{', '.join(invalid)}")
 

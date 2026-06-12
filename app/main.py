@@ -96,11 +96,15 @@ def symbols() -> dict:
 def symbol_search(q: str = "", market: str = "all", limit: int = 20) -> dict:
     safe_market = market if market in SUPPORTED_MARKETS else "all"
     safe_limit = max(1, min(limit, 20))
-    return {
+    results = search_symbols(q, market=safe_market, limit=safe_limit)
+    payload = {
         "query": q,
         "market": safe_market,
-        "results": search_symbols(q, market=safe_market, limit=safe_limit),
+        "results": results,
     }
+    if q.strip() and not results:
+        payload["warning"] = "未找到结果，或搜索服务暂时繁忙，请稍后重试"
+    return payload
 
 
 @app.get("/api/quotes")
