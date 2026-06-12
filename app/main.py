@@ -1,7 +1,6 @@
-from __future__ import annotations
-
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Optional
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -75,7 +74,7 @@ def symbols() -> dict:
 
 @app.get("/api/quotes")
 def quotes(
-    user: User | None = Depends(get_optional_user),
+    user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ) -> dict:
     tracked_symbols = get_user_symbols(user, db)
@@ -101,7 +100,7 @@ def quotes(
 
 @app.get("/api/news")
 def news(
-    user: User | None = Depends(get_optional_user),
+    user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db),
     limit: int = DEFAULT_NEWS_PER_SYMBOL,
 ) -> dict:
@@ -112,7 +111,7 @@ def news(
 
 @app.get("/api/polymarket")
 def polymarket(
-    user: User | None = Depends(get_optional_user),
+    user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ) -> dict:
     tracked_symbols = get_user_symbols(user, db)
