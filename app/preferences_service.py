@@ -5,6 +5,7 @@ import json
 from sqlalchemy.orm import Session
 
 from app.models import User, UserPreference
+from app.symbol_catalog import catalog_counts
 from app.symbols import (
     DEFAULT_NEWS_PER_SYMBOL,
     DEFAULT_SYMBOLS,
@@ -87,6 +88,7 @@ def update_preferences(db: Session, user: User, favorite_symbols: list[str], new
 
 
 def available_symbols_payload() -> dict:
+    counts = catalog_counts()
     return {
         "featured": featured_symbols_payload(),
         "markets": [
@@ -94,6 +96,10 @@ def available_symbols_payload() -> dict:
             {"key": "nasdaq", "label": "纳斯达克"},
             {"key": "ashare", "label": "A股"},
         ],
-        "search_hint": "输入股票代码或公司名称搜索，支持纳斯达克与 A 股（如 AAPL、NVDA、600519、000001）",
+        "catalog_counts": counts,
+        "search_hint": (
+            "输入股票代码或公司名称搜索，"
+            f"已收录纳斯达克 {counts['nasdaq']} 只、A股 {counts['ashare']} 只"
+        ),
         "max_favorites": 12,
     }

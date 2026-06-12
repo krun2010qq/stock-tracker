@@ -34,7 +34,9 @@ SUPPORTED_MARKETS = (MARKET_ALL, MARKET_NASDAQ, MARKET_ASHARE)
 def normalize_ashare_code(code: str) -> str | None:
     if not ASHARE_CODE_PATTERN.fullmatch(code):
         return None
-    if code.startswith(("6", "9")):
+    if code.startswith(("43", "83", "87", "92")):
+        return f"{code}.BJ"
+    if code.startswith("6"):
         return f"{code}.SS"
     if code.startswith(("0", "3")):
         return f"{code}.SZ"

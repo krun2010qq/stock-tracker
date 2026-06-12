@@ -105,8 +105,19 @@ class BlackBoxTester:
 
     def test_symbols(self) -> None:
         code, data = self.get_json("/api/symbols")
-        ok = code == 200 and len(data.get("featured", [])) >= 3 and len(data.get("markets", [])) == 3
-        self.record("symbols catalog", ok, f"code={code} featured={len(data.get('featured', [])) if data else 0}")
+        counts = (data or {}).get("catalog_counts") or {}
+        ok = (
+            code == 200
+            and len(data.get("featured", [])) >= 3
+            and len(data.get("markets", [])) == 3
+            and counts.get("nasdaq", 0) >= 1000
+            and counts.get("ashare", 0) >= 1000
+        )
+        self.record(
+            "symbols catalog",
+            ok,
+            f"code={code} featured={len(data.get('featured', [])) if data else 0} counts={counts}",
+        )
 
     def test_symbol_search(self) -> None:
         results: list[dict] = []
